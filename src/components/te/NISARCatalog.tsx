@@ -116,8 +116,8 @@ export function NISARCatalog() {
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="label-xs text-primary">LIVE NISAR ACQUISITIONS</div>
-            <h3 className="mt-1 text-base font-medium">Real browseable radar products for your area</h3>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">These footprints and preview links come from current NASA CMR granule records. The preview is a browse image, not the full scientific raster.</p>
+            <h3 className="mt-1 text-base font-medium">Real NISAR product records for your area</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">These footprints and metadata come from NASA CMR granule records. Browse images are optional previews, not the full scientific raster; records without images are still searchable.</p>
           </div>
           <div className="text-right font-mono text-[10px] text-muted-foreground">
             <div>{liveGranules.length} shown · {liveGranuleHits.toLocaleString()} matching records</div>
@@ -148,7 +148,7 @@ export function NISARCatalog() {
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
-            {state === "loading" ? "Searching NASA CMR for current granule coverage…" : state === "error" ? (error || "The live catalog is unavailable.") : "No browseable granules matched the current India area and date range. Refresh or widen the date range."}
+            {state === "loading" ? "Searching NASA CMR for current granule coverage…" : state === "error" ? (error || "The live catalog is unavailable.") : "No NISAR granules matched the current India area and date range. Browse images are optional; refresh, widen the date range, or try another area."}
           </div>
         )}
         {state === "partial" && error && <p className="mt-2 text-[11px] text-amber">{error}</p>}
