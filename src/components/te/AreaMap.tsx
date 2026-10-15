@@ -72,6 +72,8 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
     mapRef.current = map;
 
     const activate = (index: number) => {
+      const mapConfig = MAPS[index];
+      if (!mapConfig) return;
       activeIndex = index;
       MAPS.forEach((item, layerIndex) => {
         const id = `base-layer-${item.id}`;
@@ -82,7 +84,7 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
         setMapError(null);
       } else {
         setMapStatus("fallback");
-        setMapError(`The previous basemap failed. Trying ${MAPS[index].label}.`);
+        setMapError(`The previous basemap failed. Trying ${mapConfig.label}.`);
       }
       map.resize();
       map.triggerRepaint();
@@ -93,6 +95,12 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
       if (index >= MAPS.length) {
         setMapStatus("error");
         setMapError("All free basemap sources failed. Check your connection and retry.");
+        return;
+      }
+      const mapConfig = MAPS[index];
+      if (!mapConfig) {
+        setMapStatus("error");
+        setMapError("The requested map source is unavailable.");
         return;
       }
       activate(index);
@@ -117,7 +125,7 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
         window.clearTimeout(timer);
         probe(index + 1);
       };
-      image.src = MAPS[index]!.url.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0");
+      image.src = mapConfig.url.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0");
     };
     probeRef.current = probe;
 
