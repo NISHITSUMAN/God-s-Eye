@@ -205,7 +205,7 @@ export async function runCommand(raw: string) {
 
   if (/report/.test(q)) {
     await runSteps("PREPARING REPORT", ["Collecting selection", "Assembling evidence", "Formatting summary"]);
-    return reply("The report builder can create a clearly marked sample PDF for the current investigation. It will not contain processed NISAR measurements because no scientific data service is connected.", [{ label: "Open report builder", run: "navigate:/reports/create" }]);
+    return reply("The report builder can create a clearly marked report for the current investigation, including catalogue metadata and source links. It does not yet contain derived change-detection measurements from processed full-resolution NISAR rasters.", [{ label: "Open report builder", run: "navigate:/reports/create" }]);
   }
 
   if (/compare|last year|before|after/.test(q)) {
