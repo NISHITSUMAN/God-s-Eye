@@ -401,7 +401,9 @@ export async function searchNISARGranules(options: {
   const granules: NISARGranule[] = data.items.flatMap((item) => {
     const granule = normalizeNISARGranule(item, {
       collectionConceptId: options.collectionConceptId,
-      collectionShortName: options.collectionShortName,
+      ...(options.collectionShortName !== undefined
+        ? { collectionShortName: options.collectionShortName }
+        : {}),
     });
     return granule ? [granule] : [];
   });
