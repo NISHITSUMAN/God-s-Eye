@@ -119,6 +119,8 @@ export function SearchBox() {
 
   const focusRegion = (region: SearchRegion) => {
     const app = useApp.getState();
+    const defaultProducts = ["GCOV", "GSLC", "GUNW", "SME2"];
+    app.setNISARProductSelection(defaultProducts);
     app.setAOI(rectangleAOI(
       [region.bounds[0], region.bounds[1]],
       [region.bounds[2], region.bounds[3]],
