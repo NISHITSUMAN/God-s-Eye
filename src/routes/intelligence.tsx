@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { IntelligenceIndex } from "@/components/te/ScientificViews";
+export const Route = createFileRoute("/intelligence")({ head: () => ({ meta: [{ title: "Earth change intelligence — Third Eye" }, { name: "description", content: "Inspect scientific candidate phenomena and supporting evidence." }, { property: "og:title", content: "Earth change intelligence — Third Eye" }, { property: "og:description", content: "Inspect scientific candidate phenomena and supporting evidence." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: IntelligenceIndex });

@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { DatasetCatalog } from "@/components/te/ScientificViews";
+export const Route = createFileRoute("/datasets")({ head: () => ({ meta: [{ title: "Dataset catalog — Third Eye" }, { name: "description", content: "Review data availability and provenance." }, { property: "og:title", content: "Dataset catalog — Third Eye" }, { property: "og:description", content: "Review data availability and provenance." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: DatasetCatalog });

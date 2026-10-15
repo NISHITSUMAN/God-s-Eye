@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Methodology } from "@/components/te/ScientificViews";
+export const Route = createFileRoute("/methodology")({ head: () => ({ meta: [{ title: "Scientific methodology — Third Eye" }, { name: "description", content: "Trace Third Eye from data to quality checks and interpretation." }, { property: "og:title", content: "Scientific methodology — Third Eye" }, { property: "og:description", content: "Trace Third Eye from data to quality checks and interpretation." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: Methodology });

@@ -1,0 +1,138 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-amber: var(--amber);
+  --color-alert: var(--alert);
+  --color-ok: var(--ok);
+  --color-panel: var(--panel);
+  --color-elevated: var(--elevated);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+}
+
+:root {
+  --earth-space: #050A0F;
+  --earth-selection: #25D9FF;
+  --shadow-instrument: 0 8px 24px color-mix(in oklab, var(--background) 60%, transparent);
+  --radius: 8px;
+  --background: oklch(0.13 0.015 235);   /* #050A0F */
+  --panel: oklch(0.17 0.02 230);         /* #08121A */
+  --elevated: oklch(0.205 0.025 230);    /* #0C1822 */
+  --foreground: oklch(0.975 0.005 230);  /* #F3F7FA */
+  --muted-foreground: oklch(0.72 0.02 230); /* #9BAAB5 */
+  --subtle: oklch(0.54 0.02 225);        /* #61727D */
+  --primary: oklch(0.82 0.14 210);       /* #25D9FF */
+  --primary-foreground: oklch(0.13 0.015 235);
+  --amber: oklch(0.82 0.15 70);          /* #FFB547 */
+  --alert: oklch(0.68 0.19 25);          /* #FF5C5C */
+  --ok: oklch(0.79 0.15 150);            /* #54D68A */
+  --card: var(--panel);
+  --card-foreground: var(--foreground);
+  --popover: var(--elevated);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--elevated);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--elevated);
+  --accent: oklch(0.25 0.03 225);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--alert);
+  --destructive-foreground: var(--foreground);
+  --border: oklch(0.28 0.025 225);       /* #1A2A35 */
+  --input: oklch(0.28 0.025 225);
+  --ring: var(--primary);
+  --glass: color-mix(in oklab, var(--panel) 82%, transparent);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background-color: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  ::selection { background: color-mix(in oklab, var(--primary) 35%, transparent); }
+}
+
+@utility glass {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+@utility label-xs {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+@utility glow-cyan {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent), 0 0 18px -2px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+@keyframes draw-ring { from { stroke-dashoffset: 300; } to { stroke-dashoffset: 0; } }
+@keyframes ai-pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .45; transform: scale(.8);} }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
+
+@utility animate-draw { stroke-dasharray: 300; animation: draw-ring 1.8s ease-out forwards; }
+@utility animate-ai-pulse { animation: ai-pulse 1.6s ease-in-out infinite; }
+@utility animate-fade-up { animation: fade-up .5s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+* { letter-spacing: 0; }
+button, a, input, select, summary { transition: background-color .2s, border-color .2s, color .2s, opacity .2s; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.earth-renderer .cesium-viewer, .earth-renderer .cesium-viewer-cesiumWidgetContainer, .earth-renderer .cesium-widget, .earth-renderer canvas { width: 100%; height: 100%; }
+.cesium-viewer-bottom { left: 8px; bottom: 190px; }
+.cesium-widget-credits { display: none; }
+.earth-attribution { position: absolute; bottom: 184px; left: 50%; transform: translateX(-50%); font: 8px var(--font-mono); color: var(--muted-foreground); pointer-events: none; white-space: nowrap; }
+.earth-status { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%); }
+.earth-mode { position: absolute; top: 64px; left: 16px; z-index: 21; }
+.significance-control { position: absolute; top: 64px; right: 16px; z-index: 22; min-width: 218px; }
+.instrument-select, .instrument-input { border: 1px solid var(--border); border-radius: 6px; background: var(--elevated); color: var(--foreground); padding: 7px 9px; font-size: 12px; min-width: 0; }
+.sample-indicator { position: absolute; bottom: 176px; left: 50%; transform: translateX(-50%); font: 9px var(--font-mono); color: var(--amber); z-index: 12; text-align: center; }
+.first-use { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: 240px; z-index: 15; box-shadow: var(--shadow-instrument); }
+.mobile-panel-controls, .mobile-earth-panel { display: none; }
+.scientific-band { border-top: 1px solid var(--border); padding: 24px 0; }
+.visual-map { position: relative; min-height: 300px; overflow: hidden; background: var(--background); border-block: 1px solid var(--border); }
+.metadata-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 24px; }
+.metadata-grid dt { font: 10px var(--font-mono); color: var(--subtle); text-transform: uppercase; }
+.metadata-grid dd { margin-top: 4px; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .desktop-context-panel { display: none; } .mobile-panel-controls { display: flex; gap: 6px; position: absolute; right: 16px; top: 110px; z-index: 23; } .mobile-earth-panel { display: block; position: absolute; right: 16px; top: 154px; bottom: 210px; z-index: 24; overflow-y: auto; } }
+@media (max-width: 760px) { .desktop-layer-panel { display: none; } .earth-mode { top: 64px; left: 8px; } .earth-mode button { padding: 0 7px; font-size: 9px; } .significance-control { top: 106px; right: 8px; min-width: 176px; } .first-use { top: 156px; left: 12px; transform: none; width: 208px; } .mobile-panel-controls { top: 150px; right: 8px; } .mobile-earth-panel { top: 195px; right: 8px; bottom: 220px; } .sample-indicator { bottom: 206px; width: 90%; font-size: 8px; } .earth-attribution { bottom: 221px; font-size: 7px; } .metadata-grid { grid-template-columns: 1fr; } }

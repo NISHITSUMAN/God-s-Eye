@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { ReportBuilder } from "@/components/te/ScientificViews";
+export const Route = createFileRoute("/reports/create")({ head: () => ({ meta: [{ title: "Report builder — Third Eye" }, { name: "description", content: "Preview and generate a clearly labeled sample investigation report." }, { property: "og:title", content: "Report builder — Third Eye" }, { property: "og:description", content: "Preview and generate a clearly labeled sample investigation report." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: ReportBuilder });
