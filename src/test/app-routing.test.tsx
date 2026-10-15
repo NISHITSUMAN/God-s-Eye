@@ -20,13 +20,13 @@ describe("App route registration", () => {
   it("registers the Earth-first index route", () => {
     const router = makeRouter("/");
     expect(router.routesByPath["/"]).toBeDefined();
-    expect(router.routesByPath["/"]).toBe(router.routesByPath["/"]);
+    expect(router.routesByPath["/"].id).toBe("/");
   });
 
   it("registers the requested page routes and dynamic detail routes", () => {
     const router = makeRouter("/observations/OBS-123");
     expect(router.routesByPath["/observations"]).toBeDefined();
-    expect(router.routesByPath["/observations_/$id"]).toBeDefined();
+    expect(router.routesByPath["/observations/$id"]).toBeDefined();
     expect(router.routesByPath["/analysis/$id"]).toBeDefined();
     expect(router.routesByPath["/reports/create"]).toBeDefined();
   });
