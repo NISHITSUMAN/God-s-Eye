@@ -119,7 +119,6 @@ export function SearchBox() {
 
   const focusRegion = (region: SearchRegion) => {
     const app = useApp.getState();
-    app.setEarthMode(app.earthMode);
     app.setAOI(rectangleAOI(
       [region.bounds[0], region.bounds[1]],
       [region.bounds[2], region.bounds[3]],
