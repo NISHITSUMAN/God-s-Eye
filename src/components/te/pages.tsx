@@ -23,19 +23,64 @@ export const ObservationsBody = ObservationCatalog;
 
 export function TimelineBody() {
   const open = useOpen();
-  const list = [...EVENTS].sort((a, b) => a.date.localeCompare(b.date));
-  return (
-    <div className="relative border-l border-border pl-6">
-      {list.map((e) => (
-        <button key={e.id} onClick={() => open(e.id)} className="group relative mb-6 block text-left">
-          <span className="absolute -left-[28px] top-1.5 size-2 rounded-full ring-4 ring-background" style={{ background: phenomenonColor(e.type) }} />
-          <div className="font-mono text-[11px] text-subtle">{e.date}</div>
-          <div className="mt-0.5 text-[15px] group-hover:text-primary">{e.title} — {e.region}</div>
-          <div className="font-mono text-[11px] text-muted-foreground">{e.metric} · {e.observationId}</div>
-        </button>
-      ))}
-    </div>
-  );
+  const time = useApp(state => state.time);
+  const granules = useApp(state => state.nisarGranules);
+  const nisarStatus = useApp(state => state.nisarStatus);
+  const nisarError = useApp(state => state.nisarError);
+  const liveEvents = useApp(state => state.liveEvents);
+  const liveStatus = useApp(state => state.liveDataStatus);
+  const start = time.start;
+  const end = time.end;
+  const current = time.current;
+  const realGranules = granules.filter(granule => {
+    const day = (granule.startDate || "").slice(0, 10);
+    return day && day >= start && day <= end && day <= current;
+  }).sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+  const publicEvents = liveEvents.filter(event => {
+    const day = event.date.slice(0, 10);
+    return day >= start && day <= end && day <= current;
+  }).sort((a, b) => b.date.localeCompare(a.date));
+  const samples = [...EVENTS]
+    .filter(event => event.date >= start && event.date <= end && event.date <= current)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return <div className="space-y-6">
+    <section className="scientific-band">
+      <div className="label-xs text-primary">REAL SATELLITE ACQUISITIONS · NASA CMR / ASF</div>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="text-lg">NISAR acquisition timeline</h2><p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">Browse actual catalogued NISAR products within the selected time window. These are acquisition records and footprints, not inferred hazards or change-detection outputs.</p></div>
+        <span className="font-mono text-[10px] text-muted-foreground">{nisarStatus.toUpperCase()} · {realGranules.length} SHOWN</span>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+        <label className="grid gap-1">FROM<input type="date" value={time.start} max={time.end} onChange={event => useApp.getState().setTimeRange({start:event.target.value,end:time.end})} className="instrument-input"/></label>
+        <label className="grid gap-1">TO<input type="date" value={time.end} min={time.start} max={new Date().toISOString().slice(0,10)} onChange={event => useApp.getState().setTimeRange({start:time.start,end:event.target.value})} className="instrument-input"/></label>
+        <button type="button" onClick={() => void useApp.getState().refreshNISARData()} disabled={nisarStatus==="loading"} className="mt-4 rounded-md border border-primary/40 px-3 py-2 text-primary disabled:opacity-50">{nisarStatus==="loading"?"SEARCHING NASA CMR":"REFRESH NISAR ARCHIVE"}</button>
+      </div>
+      {nisarError&&<p role="status" className="mt-3 text-xs text-amber">{nisarError}</p>}
+      {realGranules.length ? <div className="mt-4 space-y-2">
+        {realGranules.map(granule=><article key={granule.conceptId} className="flex flex-wrap items-start gap-3 rounded-md border border-border bg-background/30 p-3">
+          {granule.browseUrl&&<a href={granule.browseUrl} target="_blank" rel="noopener noreferrer" className="block h-20 w-24 shrink-0 overflow-hidden rounded border border-border bg-background"><img src={granule.browseUrl} alt={`NISAR ${granule.productCode} browse preview`} loading="lazy" className="h-full w-full object-contain" onError={event=>{event.currentTarget.style.display="none";}}/></a>}
+          <div className="min-w-0 flex-1"><div className="font-mono text-[10px] text-primary">{granule.productCode} · {(granule.startDate||"").slice(0,10)}</div><div className="mt-1 break-all text-xs">{granule.granuleId}</div><div className="mt-2 flex flex-wrap gap-3 text-[11px]"><Link to="/observations/$id" params={{id:granule.id}} className="text-primary hover:underline">Inspect acquisition</Link><a href={granule.earthdataSearchUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Earthdata ↗</a></div></div>
+        </article>)}
+      </div> : <p className="mt-4 rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">{nisarStatus==="loading"?"Loading real acquisition metadata…":"No live NISAR granules matched this area and time window. Refresh or search another area in Data Explorer."}</p>}
+    </section>
+
+    <section className="scientific-band">
+      <div className="label-xs text-ok">SOURCE-REPORTED PUBLIC EVENTS</div>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg">Earth event chronology</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">USGS earthquake reports and NASA EONET natural-event records. These complement the map but are not NISAR radar measurements.</p></div><span className="font-mono text-[10px] text-muted-foreground">{liveStatus.toUpperCase()} · {publicEvents.length} SHOWN</span></div>
+      {publicEvents.length ? <div className="mt-4 space-y-2">{publicEvents.map(event=><button key={event.id} type="button" onClick={()=>open(event.id)} className="flex w-full flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-background/30 p-3 text-left hover:bg-elevated"><div className="min-w-0"><div className="font-mono text-[10px] text-ok">{event.source} · {event.date.slice(0,10)}</div><div className="mt-1 text-sm">{event.title}</div><div className="mt-1 text-xs text-muted-foreground">{event.region}</div></div><span className="text-[11px] text-primary">Inspect ↗</span></button>)}</div> : <p className="mt-4 text-xs text-muted-foreground">No source-reported public events are loaded in this time range. Open Data Explorer or refresh the public feeds.</p>}
+    </section>
+
+    <section className="scientific-band">
+      <div className="label-xs text-amber">ILLUSTRATIVE SAMPLE DATA</div>
+      <h2 className="mt-2 text-lg">Example change candidates</h2>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">These demo items help exercise the interface; they are not verified detections or real NISAR acquisitions.</p>
+      <div className="mt-4 relative border-l border-border pl-6">
+        {samples.map(event=><button key={event.id} type="button" onClick={()=>open(event.id)} className="group relative mb-5 block text-left"><span className="absolute -left-[28px] top-1.5 size-2 rounded-full ring-4 ring-background" style={{background:phenomenonColor(event.type)}}/><div className="font-mono text-[11px] text-subtle">{event.date}</div><div className="mt-0.5 text-[15px] group-hover:text-primary">{event.title} — {event.region}</div><div className="font-mono text-[11px] text-muted-foreground">{event.metric} · {event.observationId}</div></button>)}
+        {!samples.length&&<p className="py-3 text-xs text-muted-foreground">No sample candidate falls within the selected date range.</p>}
+      </div>
+    </section>
+  </div>;
 }
 
 export const AnalyzeBody = AnalyzeFlow;
