@@ -23,14 +23,120 @@ export interface NISARCollection {
   earthdataSearchUrl: string;
 }
 
+export type NISARPosition = [number, number];
+
 export interface NISARGranule {
+  id: string;
   conceptId: string;
   granuleId: string;
+  collectionConceptId: string;
+  collectionShortName: string;
+  productCode: string;
+  title: string;
   startDate: string | null;
   endDate: string | null;
   producer: string;
+  bounds: CMRBounds | null;
+  footprint: NISARPosition[] | null;
+  browseUrl: string | null;
+  dataUrl: string | null;
   metadataUrl: string;
   earthdataSearchUrl: string;
+}
+
+function recordOf(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function finiteNumber(value: unknown): number | null {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(number) ? number : null;
+}
+
+function granuleSpatial(umm: Record<string, unknown>): { bounds: CMRBounds | null; footprint: NISARPosition[] | null } {
+  const spatial = recordOf(umm.SpatialExtent);
+  const horizontal = recordOf(spatial?.HorizontalSpatialDomain);
+  const geometry = recordOf(horizontal?.Geometry);
+  const rectangles = Array.isArray(geometry?.BoundingRectangles)
+    ? geometry.BoundingRectangles
+    : geometry?.BoundingRectangle ? [geometry.BoundingRectangle] : [];
+  for (const candidate of rectangles) {
+    const item = recordOf(candidate);
+    if (!item) continue;
+    const west = finiteNumber(item.WestBoundingCoordinate);
+    const south = finiteNumber(item.SouthBoundingCoordinate);
+    const east = finiteNumber(item.EastBoundingCoordinate);
+    const north = finiteNumber(item.NorthBoundingCoordinate);
+    if (west !== null && south !== null && east !== null && north !== null &&
+        west >= -180 && east <= 180 && south >= -90 && north <= 90 && west < east && south < north) {
+      const bounds = { west, south, east, north };
+      return { bounds, footprint: null };
+    }
+  }
+
+  const polygons = Array.isArray(geometry?.GPolygons) ? geometry.GPolygons : [];
+  for (const polygonCandidate of polygons) {
+    const polygon = recordOf(polygonCandidate);
+    const boundary = recordOf(polygon?.Boundary);
+    const points = Array.isArray(boundary?.Points) ? boundary.Points : [];
+    const footprint = points.flatMap((value): NISARPosition[] => {
+      const point = recordOf(value);
+      const lng = finiteNumber(point?.Longitude);
+      const lat = finiteNumber(point?.Latitude);
+      return lng !== null && lat !== null && Math.abs(lng) <= 180 && Math.abs(lat) <= 90
+        ? [[lng, lat]]
+        : [];
+    });
+    if (footprint.length >= 3) {
+      const longitudes = footprint.map(point => point[0]);
+      const latitudes = footprint.map(point => point[1]);
+      const west = Math.min(...longitudes);
+      const east = Math.max(...longitudes);
+      const south = Math.min(...latitudes);
+      const north = Math.max(...latitudes);
+      if (west < east && south < north) return { bounds: { west, south, east, north }, footprint };
+    }
+  }
+  return { bounds: null, footprint: null };
+}
+
+function safeCMRRelatedUrl(value: unknown): string | null {
+  const candidate = textValue(value);
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function granuleRelatedUrls(umm: Record<string, unknown>) {
+  const related = Array.isArray(umm.RelatedUrls) ? umm.RelatedUrls : [];
+  let browseUrl: string | null = null;
+  let dataUrl: string | null = null;
+  for (const candidate of related) {
+    const item = recordOf(candidate);
+    if (!item) continue;
+    const url = safeCMRRelatedUrl(item.URL);
+    if (!url) continue;
+    const type = textValue(item.Type).toUpperCase();
+    const contentType = textValue(item.URLContentType).toLowerCase();
+    const mimeType = textValue(item.MimeType).toLowerCase();
+    if (!browseUrl && (
+      type.includes("VISUALIZATION") ||
+      contentType.includes("visualization") ||
+      mimeType.startsWith("image/")
+    )) browseUrl = url;
+    if (!dataUrl && (
+      type.includes("GET DATA") ||
+      type.includes("DIRECT ACCESS") ||
+      contentType.includes("distribution")
+    )) dataUrl = url;
+  }
+  return { browseUrl, dataUrl };
 }
 
 interface CMRItem {
@@ -189,6 +295,7 @@ export async function searchNISARGranules(options: {
   startDate?: string | null;
   endDate?: string | null;
   pageSize?: number;
+  collectionShortName?: string;
 }): Promise<{ granules: NISARGranule[]; hits: number }> {
   if (!/^C\d+-[A-Z0-9_-]+$/i.test(options.collectionConceptId)) {
     throw new Error("Choose a valid NASA CMR collection before searching for granules.");
@@ -197,6 +304,7 @@ export async function searchNISARGranules(options: {
   url.searchParams.set("collection_concept_id", options.collectionConceptId);
   url.searchParams.set("page_size", String(Math.max(1, Math.min(100, Math.floor(options.pageSize ?? 10)))));
   url.searchParams.append("sort_key[]", "-start_date");
+  url.searchParams.set("browsable", "true");
 
   if (options.bounds) {
     validateBounds(options.bounds);
@@ -221,23 +329,35 @@ export async function searchNISARGranules(options: {
     const conceptId = textValue(meta["concept-id"] ?? meta.concept_id);
     const granuleId = textValue(umm.GranuleUR) || textValue(meta["native-id"] ?? meta.native_id);
     if (!conceptId || !granuleId) return [];
-    const temporal = umm.TemporalExtent && typeof umm.TemporalExtent === "object"
-      ? umm.TemporalExtent as Record<string, unknown>
-      : {};
-    const range = temporal.RangeDateTime && typeof temporal.RangeDateTime === "object"
-      ? temporal.RangeDateTime as Record<string, unknown>
-      : {};
-    const startDate = textValue(range.BeginningDateTime) || null;
-    const endDate = textValue(range.EndingDateTime) || null;
-    const dataCenter = Array.isArray(umm.DataCenters) && umm.DataCenters[0] && typeof umm.DataCenters[0] === "object"
-      ? textValue((umm.DataCenters[0] as Record<string, unknown>).ShortName)
-      : "";
+    const temporal = recordOf(umm.TemporalExtent);
+    const range = recordOf(temporal?.RangeDateTime);
+    const singleDate = textValue(temporal?.SingleDateTime) || "";
+    const startDate = textValue(range?.BeginningDateTime) || singleDate || null;
+    const endDate = textValue(range?.EndingDateTime) || singleDate || null;
+    const dataCenters = Array.isArray(umm.DataCenters) ? umm.DataCenters : [];
+    const dataCenter = textValue(recordOf(dataCenters[0])?.ShortName);
+    const spatial = granuleSpatial(umm);
+    const related = granuleRelatedUrls(umm);
+    const productCode = (options.collectionShortName || granuleId).match(/GCOV|GSLC|GUNW|GOFF|RSLC|RIFG|ROFF|RUNW|SME2|CRSD|RRSD/i)?.[0]?.toUpperCase() || "NISAR";
+    const title = textValue(umm.CollectionReference && recordOf(umm.CollectionReference)?.EntryTitle) || granuleId;
+    const s3BrowseFallback = options.collectionShortName
+      ? `https://sds-n-cumulus-prod-nisar-browse.s3.us-west-2.amazonaws.com/${encodeURIComponent(options.collectionShortName)}/${encodeURIComponent(granuleId)}/${encodeURIComponent(granuleId)}.png`
+      : null;
     return [{
+      id: `nisar:${conceptId}`,
       conceptId,
       granuleId,
+      collectionConceptId: options.collectionConceptId,
+      collectionShortName: options.collectionShortName || "",
+      productCode,
+      title,
       startDate,
       endDate,
       producer: dataCenter,
+      bounds: spatial.bounds,
+      footprint: spatial.footprint,
+      browseUrl: related.browseUrl || s3BrowseFallback,
+      dataUrl: related.dataUrl,
       metadataUrl: `https://cmr.earthdata.nasa.gov/search/concepts/${encodeURIComponent(conceptId)}`,
       earthdataSearchUrl: `https://search.earthdata.nasa.gov/search?q=${encodeURIComponent(granuleId)}`,
     }];
