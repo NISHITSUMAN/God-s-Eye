@@ -57,6 +57,14 @@ if (!(await exists(sourceRoot))) {
 }
 
 for (const outputRoot of existingRoots) {
+  // These public files are required for the India-aligned Kashmir boundary overlay.
+  for (const relativePath of ["data/jammu-kashmir-ladakh.geojson", "data/BOUNDARY-DATA-ATTRIBUTION.md"]) {
+    if (!(await exists(path.join(outputRoot, relativePath)))) {
+      console.error(`Required public boundary asset is missing from ${outputRoot}: ${relativePath}`);
+      process.exit(1);
+    }
+  }
+
   const targetRoot = path.join(outputRoot, "cesium");
   const missingDirectories = [];
   for (const directory of ["Workers", "ThirdParty", "Assets", "Widgets"]) {
