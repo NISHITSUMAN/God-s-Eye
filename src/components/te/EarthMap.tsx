@@ -5,7 +5,7 @@ import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
 import { phenomenonColor } from "@/lib/mock-data";
 
-export default function EarthMap() {
+export default function EarthMap({ compact = false }: { compact?: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const layers = useApp(s => s.layers); const filter = useApp(s => s.filter); const time = useApp(s => s.time); const lod = useApp(s => s.lod); const selected = useApp(s => s.selectedId); const nonce = useApp(s => s.viewNonce); const opacity = useApp(s => s.opacity); const liveEvents = useApp(s => s.liveEvents);
@@ -44,7 +44,7 @@ export default function EarthMap() {
   useEffect(() => {
     if (!el.current) return;
     const view = useApp.getState().view;
-    const map = new maplibregl.Map({ container: el.current, center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), attributionControl: false, style: { version: 8, sources: { imagery: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Esri, Maxar, Earthstar Geographics" } }, layers: [{ id: "imagery", type: "raster", source: "imagery" }] } });
+    const map = new maplibregl.Map({ container: el.current, center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), attributionControl: { compact: true }, style: { version: 8, sources: { imagery: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "imagery", type: "raster", source: "imagery" }] } });
     mapRef.current = map;
     map.on("load", () => {
       const selection = getComputedStyle(document.documentElement).getPropertyValue("--earth-selection").trim();
@@ -69,5 +69,5 @@ export default function EarthMap() {
   }, []);
   useEffect(update, [layers, filter, time, lod, selected, opacity, liveEvents]);
   useEffect(() => { const view = useApp.getState().view; mapRef.current?.flyTo({ center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), duration: 1500, essential: false }); }, [nonce]);
-  return <div ref={el} className="absolute inset-0 earth-renderer" data-earth-engine="maplibre"><div className="earth-attribution">Esri · Maxar · Earthstar Geographics · USGS/NASA live feeds · NISAR overlays are sample-only</div></div>;
+  return <div ref={el} className={compact ? "absolute inset-0 earth-renderer earth-renderer-compact" : "absolute inset-0 earth-renderer"} data-earth-engine="maplibre"><div className="earth-attribution">USGS/NASA live records · NISAR science overlays are sample-only</div></div>;
 }
