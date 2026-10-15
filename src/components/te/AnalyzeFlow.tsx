@@ -24,7 +24,7 @@ export function AnalyzeFlow(){
     :{west:aoi.center.lng-.05,south:aoi.center.lat-.05,east:aoi.center.lng+.05,north:aoi.center.lat+.05};
    const coverage=await searchNISARCoverage({bounds:safeBounds,startDate:start,endDate:end,productCodes});
    if(!coverage.granules.length){
-    throw new Error('NASA CMR did not return browseable NISAR granules for this area, selected product and date range. Try a wider range or a larger area. No sample analysis was generated.');
+    throw new Error('NASA CMR did not return NISAR granule records for this area, selected product and date range. Try a wider range, a larger area, or another product. No sample analysis was generated.');
    }
    const id=`LIVE-CMR-${Date.now()}`;
    useApp.getState().addAnalysis({id,aoi,datasets,start,end,kind,timeMode,provenance:'live-catalog',matchedGranules:coverage.granules,catalogWarnings:coverage.warnings});
