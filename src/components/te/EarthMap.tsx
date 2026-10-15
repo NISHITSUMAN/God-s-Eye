@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, { type RasterSourceSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
@@ -8,7 +8,7 @@ import type { NISARGranule } from "@/lib/nasa-cmr";
 
 type MapStatus = "loading" | "ready" | "fallback" | "error";
 
-const BASEMAPS = [
+const BASEMAPS: { id: string; label: string; source: RasterSourceSpecification }[] = [
   {
     id: "osm",
     label: "OpenStreetMap",
@@ -39,7 +39,7 @@ const BASEMAPS = [
       attribution: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
     },
   },
-] as const;
+];
 
 export default function EarthMap({ compact = false }: { compact?: boolean }) {
   const el = useRef<HTMLDivElement>(null);
@@ -164,7 +164,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
     const sources: Record<string, maplibregl.SourceSpecification> = {};
     const styleLayers: maplibregl.LayerSpecification[] = [];
     BASEMAPS.forEach((basemap, index) => {
-      sources[`base-${basemap.id}`] = basemap.source;
+      sources[`base-${basemap.id}`] = { ...basemap.source, tiles: [...(basemap.source.tiles ?? [])] };
       styleLayers.push({
         id: `base-layer-${basemap.id}`,
         type: "raster",
@@ -194,6 +194,8 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
 
     const setActiveBasemap = (index: number) => {
       const validIndex = Math.max(0, Math.min(BASEMAPS.length - 1, index));
+      const mapConfig = BASEMAPS[validIndex];
+      if (!mapConfig) return;
       activeBasemapRef.current = validIndex;
       BASEMAPS.forEach((basemap, layerIndex) => {
         const layerId = `base-layer-${basemap.id}`;
@@ -206,7 +208,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         setMapError("");
       } else {
         setMapStatus("fallback");
-        setMapError(`The previous map tile source failed. Trying ${BASEMAPS[validIndex].label}.`);
+        setMapError(`The previous map tile source failed. Trying ${mapConfig.label}.`);
       }
       map.resize();
       map.triggerRepaint();
@@ -218,8 +220,14 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         setMapError("All free map tile sources failed to load. Check your connection and try again.");
         return;
       }
+      const mapConfig = BASEMAPS[index];
+      if (!mapConfig) {
+        setMapStatus("error");
+        setMapError("The requested map source is unavailable.");
+        return;
+      }
       setActiveBasemap(index);
-      const tileTemplate = BASEMAPS[index].source.tiles[0];
+      const tileTemplate = mapConfig.source.tiles?.[0];
       if (!tileTemplate) {
         probeBasemap(index + 1);
         return;
@@ -245,7 +253,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         if (settled || activeBasemapRef.current !== index) return;
         settled = true;
         window.clearTimeout(timer);
-        console.warn(`2D basemap ${BASEMAPS[index].label} failed its tile probe.`);
+        console.warn(`2D basemap ${mapConfig.label} failed its tile probe.`);
         probeBasemap(index + 1);
       };
       image.src = tileTemplate.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0");
