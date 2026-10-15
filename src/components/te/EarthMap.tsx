@@ -46,6 +46,10 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
     const view = useApp.getState().view;
     const map = new maplibregl.Map({ container: el.current, center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), attributionControl: { compact: true }, style: { version: 8, sources: { imagery: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "imagery", type: "raster", source: "imagery" }] } });
     mapRef.current = map;
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => map.resize())
+      : null;
+    if (resizeObserver && el.current) resizeObserver.observe(el.current);
     map.on("load", () => {
       const selection = getComputedStyle(document.documentElement).getPropertyValue("--earth-selection").trim();
       map.addSource("events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -65,7 +69,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       map.on("mouseleave", "event-points", () => { map.getCanvas().style.cursor = "grab"; });
     });
     map.on("moveend", () => { const center = map.getCenter(); useApp.getState().syncView({ lat: center.lat, lng: center.lng, altitude: Math.pow(2, 4 - map.getZoom()) / 4 }); });
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { resizeObserver?.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
   useEffect(update, [layers, filter, time, lod, selected, opacity, liveEvents]);
   useEffect(() => { const view = useApp.getState().view; mapRef.current?.flyTo({ center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), duration: 1500, essential: false }); }, [nonce]);
