@@ -61,6 +61,7 @@ function configuredImagery() {
 export default function EarthGlobe() {
   const container = useRef<HTMLDivElement>(null);
   const ref = useRef<Viewer | null>(null);
+  const retryImageryRef = useRef<(() => void) | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageryLabel, setImageryLabel] = useState("Loading imagery");
@@ -285,7 +286,6 @@ export default function EarthGlobe() {
       cancelled = true;
       resizeObserver?.disconnect();
       retryImageryRef.current = null;
-      resizeObserver?.disconnect();
       handler.destroy();
       removeCamera();
       removeTick();
