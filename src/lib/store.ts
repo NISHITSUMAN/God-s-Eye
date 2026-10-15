@@ -152,6 +152,7 @@ export const useApp = create<AppState>((set) => ({
   nisarProductCollections: [],
   nisarGranules: [],
   nisarGranuleHits: 0,
+  nisarSelectedProductCodes: DEFAULT_NISAR_PRODUCTS,
   nisarStatus: "idle",
   nisarUpdatedAt: null,
   nisarError: null,
