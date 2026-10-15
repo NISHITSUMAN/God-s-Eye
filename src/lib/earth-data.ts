@@ -86,17 +86,20 @@ export const EARTH_OBSERVATIONS: ObservationRecord[] = OBSERVATIONS.map((observa
 }));
 
 export const DATASETS = [
-  { id: "GCOV", group: "PRIMARY", name: "NISAR GCOV", availability: "SAMPLE CATALOG", description: "Geocoded polarimetric covariance product." },
-  { id: "GUNW", group: "PRIMARY", name: "NISAR GUNW", availability: "SAMPLE CATALOG", description: "Geocoded unwrapped interferogram product." },
-  { id: "GSLC", group: "PRIMARY", name: "NISAR GSLC", availability: "SAMPLE CATALOG", description: "Geocoded single-look complex product." },
-  { id: "GOFF", group: "PRIMARY", name: "NISAR GOFF", availability: "SAMPLE CATALOG", description: "Geocoded pixel-offset product." },
-  { id: "SME2", group: "PRIMARY", name: "NISAR SME2", availability: "SAMPLE CATALOG", description: "Level 3 soil-moisture product." },
+  { id: "RSLC", group: "PRIMARY", name: "NISAR RSLC", availability: "LIVE CMR CATALOG", description: "Real range-Doppler single-look complex granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "RIFG", group: "PRIMARY", name: "NISAR RIFG", availability: "LIVE CMR CATALOG", description: "Real wrapped-interferogram granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "RUNW", group: "PRIMARY", name: "NISAR RUNW", availability: "LIVE CMR CATALOG", description: "Real unwrapped-interferogram granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "ROFF", group: "PRIMARY", name: "NISAR ROFF", availability: "LIVE CMR CATALOG", description: "Real range-Doppler pixel-offset granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "GSLC", group: "PRIMARY", name: "NISAR GSLC", availability: "LIVE CMR CATALOG", description: "Real geocoded single-look complex granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "GCOV", group: "PRIMARY", name: "NISAR GCOV", availability: "LIVE CMR CATALOG", description: "Real geocoded polarimetric covariance granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "GUNW", group: "PRIMARY", name: "NISAR GUNW", availability: "LIVE CMR CATALOG", description: "Real geocoded unwrapped-interferogram granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "GOFF", group: "PRIMARY", name: "NISAR GOFF", availability: "LIVE CMR CATALOG", description: "Real geocoded pixel-offset granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
+  { id: "SME2", group: "PRIMARY", name: "NISAR SME2", availability: "LIVE CMR CATALOG", description: "Real soil-moisture granule metadata and browse discovery. Full raster analysis is not run in this frontend." },
   { id: "FIRMS", group: "SUPPORTING", name: "FIRMS thermal anomalies", availability: "NOT CONNECTED", description: "Thermal hotspot evidence source." },
   { id: "LANDSAT", group: "SUPPORTING", name: "Landsat optical imagery", availability: "NOT CONNECTED", description: "Optical context and vegetation indices." },
   { id: "DEM", group: "SUPPORTING", name: "Elevation and slope", availability: "SAMPLE CONTEXT", description: "Terrain context for interpretation." },
   { id: "USGS-EQ", group: "SUPPORTING", name: "USGS Earthquake Catalog", availability: "LIVE + HISTORICAL CONTEXT", description: "Public USGS catalog for magnitude 5+ earthquakes across a two-year archive. Context only; not a NISAR product." },
   { id: "NASA-EONET", group: "SUPPORTING", name: "NASA EONET Event Archive", availability: "LIVE + HISTORICAL CONTEXT", description: "Public open and closed wildfires, floods, landslides and volcanic events across a two-year archive. Context only; not a NISAR product." },
-] as const;
 
 export interface EarthDataProvider {
   provenance: Provenance;
