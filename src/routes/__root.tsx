@@ -55,7 +55,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Third Eye — Earth Intelligence" },
-      { name: "description", content: "Earth-observation exploration prototype with interactive geographic views, sample science layers, and separate public event feeds." },
+      { name: "description", content: "Earth-observation explorer with real NASA NISAR catalogue coverage, public context feeds, historical timeline, and clearly marked illustrative science layers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
