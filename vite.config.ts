@@ -3,7 +3,7 @@
 // Vercel needs its own Build Output API directory for static Cesium assets and functions.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-const isVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+const isVercel = process.env["VERCEL"] === "1" || process.env["VERCEL"] === "true";
 
 export default defineConfig({
   vite: {
