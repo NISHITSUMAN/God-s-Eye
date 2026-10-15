@@ -22,7 +22,17 @@ export function BrandLoader() {
   if (phase === "gone") return null;
   return (
     <div
-      onClick={() => { setPhase("gone"); sessionStorage.setItem("te-intro", "1"); }}
+      role="button"
+      tabIndex={0}
+      aria-label="Skip Third Eye introduction"
+      onClick={() => { setPhase("gone"); markIntroSeen(); }}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setPhase("gone");
+          markIntroSeen();
+        }
+      }}
       className={`fixed inset-0 z-[100] flex cursor-pointer flex-col items-center justify-center gap-6 bg-background transition-opacity duration-700 ${phase === "fade" ? "opacity-0" : "opacity-100"}`}
     >
       <LogoMark size={72} animate />
