@@ -354,7 +354,7 @@ function normalizeNISARGranule(
 
 /** Load a real granule directly so observation URLs continue to work after refresh or sharing. */
 export async function fetchNISARGranuleByConceptId(conceptId: string): Promise<NISARGranule> {
-  if (!/^G\\d+-[A-Z0-9_-]+$/i.test(conceptId)) {
+  if (!/^G\d+-[A-Z0-9_-]+$/i.test(conceptId)) {
     throw new Error("The NISAR granule ID is invalid.");
   }
   const url = new URL(`${CMR_BASE}/concepts/${encodeURIComponent(conceptId)}.umm_json`);
