@@ -59,6 +59,38 @@ function granuleSpatial(umm: Record<string, unknown>): { bounds: CMRBounds | nul
   const spatial = recordOf(umm.SpatialExtent);
   const horizontal = recordOf(spatial?.HorizontalSpatialDomain);
   const geometry = recordOf(horizontal?.Geometry);
+
+  // Keep the actual source footprint when CMR provides one. A bounding rectangle
+  // is only a fallback, because it can considerably overstate a radar swath.
+  const polygons = Array.isArray(geometry?.GPolygons) ? geometry.GPolygons : [];
+  for (const polygonCandidate of polygons) {
+    const polygon = recordOf(polygonCandidate);
+    const boundary = recordOf(polygon?.Boundary);
+    const points = Array.isArray(boundary?.Points) ? boundary.Points : [];
+    const footprint = points.flatMap((value): NISARPosition[] => {
+      const point = recordOf(value);
+      const lng = finiteNumber(point?.Longitude);
+      const lat = finiteNumber(point?.Latitude);
+      return lng !== null && lat !== null &&
+        Math.abs(lng) <= 180 && Math.abs(lat) <= 90
+        ? [[lng, lat]]
+        : [];
+    });
+    if (footprint.length >= 3) {
+      const longitudes = footprint.map(point => point[0]);
+      const latitudes = footprint.map(point => point[1]);
+      const west = Math.min(...longitudes);
+      const east = Math.max(...longitudes);
+      const south = Math.min(...latitudes);
+      const north = Math.max(...latitudes);
+      if (west < east && south < north) {
+        return { bounds: { west, south, east, north }, footprint };
+      }
+    }
+  }
+
+  // Some providers publish only a coarse extent; keep it usable for search and
+  // map coverage while leaving footprint null so the UI can identify the fallback.
   const rectangles = Array.isArray(geometry?.BoundingRectangles)
     ? geometry.BoundingRectangles
     : geometry?.BoundingRectangle ? [geometry.BoundingRectangle] : [];
@@ -70,33 +102,9 @@ function granuleSpatial(umm: Record<string, unknown>): { bounds: CMRBounds | nul
     const east = finiteNumber(item.EastBoundingCoordinate);
     const north = finiteNumber(item.NorthBoundingCoordinate);
     if (west !== null && south !== null && east !== null && north !== null &&
-        west >= -180 && east <= 180 && south >= -90 && north <= 90 && west < east && south < north) {
-      const bounds = { west, south, east, north };
-      return { bounds, footprint: null };
-    }
-  }
-
-  const polygons = Array.isArray(geometry?.GPolygons) ? geometry.GPolygons : [];
-  for (const polygonCandidate of polygons) {
-    const polygon = recordOf(polygonCandidate);
-    const boundary = recordOf(polygon?.Boundary);
-    const points = Array.isArray(boundary?.Points) ? boundary.Points : [];
-    const footprint = points.flatMap((value): NISARPosition[] => {
-      const point = recordOf(value);
-      const lng = finiteNumber(point?.Longitude);
-      const lat = finiteNumber(point?.Latitude);
-      return lng !== null && lat !== null && Math.abs(lng) <= 180 && Math.abs(lat) <= 90
-        ? [[lng, lat]]
-        : [];
-    });
-    if (footprint.length >= 3) {
-      const longitudes = footprint.map(point => point[0]);
-      const latitudes = footprint.map(point => point[1]);
-      const west = Math.min(...longitudes);
-      const east = Math.max(...longitudes);
-      const south = Math.min(...latitudes);
-      const north = Math.max(...latitudes);
-      if (west < east && south < north) return { bounds: { west, south, east, north }, footprint };
+        west >= -180 && east <= 180 && south >= -90 && north <= 90 &&
+        west < east && south < north) {
+      return { bounds: { west, south, east, north }, footprint: null };
     }
   }
   return { bounds: null, footprint: null };
@@ -287,7 +295,7 @@ function validateBounds(bounds: CMRBounds): void {
 
 /**
  * Search real NISAR granule metadata for a chosen CMR collection.
- * An AOI bbox and date range are optional. Downloads may need Earthdata Login.
+ * An AOI bbox and date range are optional. Browse links are optional and downloads may need Earthdata Login.
  */
 export async function searchNISARGranules(options: {
   collectionConceptId: string;
@@ -304,7 +312,6 @@ export async function searchNISARGranules(options: {
   url.searchParams.set("collection_concept_id", options.collectionConceptId);
   url.searchParams.set("page_size", String(Math.max(1, Math.min(100, Math.floor(options.pageSize ?? 10)))));
   url.searchParams.append("sort_key[]", "-start_date");
-  url.searchParams.set("browsable", "true");
 
   if (options.bounds) {
     validateBounds(options.bounds);
