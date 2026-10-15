@@ -84,7 +84,29 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function LiveDataBootstrap() {
   useEffect(() => {
-    void useApp.getState().refreshLiveData();
+    const refresh = () => {
+      void useApp.getState().refreshLiveData();
+      void useApp.getState().refreshNISARData();
+    };
+    refresh();
+
+    let debounceId: number | undefined;
+    const unsubscribe = useApp.subscribe((state, previous) => {
+      const areaChanged = state.aoi !== previous.aoi;
+      const timeWindowChanged = state.time.start !== previous.time.start || state.time.end !== previous.time.end;
+      if (!areaChanged && !timeWindowChanged) return;
+      window.clearTimeout(debounceId);
+      debounceId = window.setTimeout(() => {
+        void useApp.getState().refreshNISARData();
+      }, 700);
+    });
+
+    const refreshId = window.setInterval(refresh, 30 * 60 * 1000);
+    return () => {
+      unsubscribe();
+      window.clearTimeout(debounceId);
+      window.clearInterval(refreshId);
+    };
   }, []);
   return null;
 }
