@@ -43,6 +43,22 @@ export function ObservationDetail({id}:{id:string}) {
     void fetchNISARGranuleByConceptId(id.slice("nisar:".length))
       .then(granule => {
         if (cancelled) return;
+        // Cache the resolved record so View Coverage, the map, timeline and global
+        // search all use the same real granule after opening a shared deep link.
+        useApp.setState(state => {
+          const known = state.nisarGranules.some(item => item.id === granule.id);
+          const layers = new Set(state.layers);
+          layers.add("nisar-coverage");
+          layers.add(`prod-${granule.productCode}`);
+          return {
+            nisarGranules: known ? state.nisarGranules : [granule, ...state.nisarGranules],
+            nisarGranuleHits: Math.max(state.nisarGranuleHits, known ? state.nisarGranuleHits : 1),
+            nisarSelectedProductCodes: state.nisarSelectedProductCodes.includes(granule.productCode)
+              ? state.nisarSelectedProductCodes
+              : [...state.nisarSelectedProductCodes, granule.productCode],
+            layers,
+          };
+        });
         setFetchedNisar(granule);
         setFetchState("ready");
       })
