@@ -94,11 +94,17 @@ function LiveDataBootstrap() {
     const unsubscribe = useApp.subscribe((state, previous) => {
       const areaChanged = state.aoi !== previous.aoi;
       const timeWindowChanged = state.time.start !== previous.time.start || state.time.end !== previous.time.end;
-      if (!areaChanged && !timeWindowChanged) return;
+      const selectedDateChanged = state.time.current !== previous.time.current;
+      const playbackStopped = previous.playing && !state.playing;
+
+      // During playback the cursor advances quickly. Refresh after a settled
+      // date instead of issuing one catalog request per playback tick.
+      if (!areaChanged && !timeWindowChanged && !playbackStopped && (!selectedDateChanged || state.playing)) return;
       window.clearTimeout(debounceId);
       debounceId = window.setTimeout(() => {
+        if (useApp.getState().playing) return;
         void useApp.getState().refreshNISARData();
-      }, 700);
+      }, 900);
     });
 
     const refreshId = window.setInterval(refresh, 30 * 60 * 1000);
