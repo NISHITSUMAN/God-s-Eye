@@ -61,6 +61,7 @@ export default function EarthGlobe() {
   const lod = useApp(s => s.lod);
   const opacity = useApp(s => s.opacity);
   const selected = useApp(s => s.selectedId);
+  const liveEvents = useApp(s => s.liveEvents);
   const nonce = useApp(s => s.viewNonce);
   const ds = useRef<CustomDataSource | null>(null);
 
@@ -265,8 +266,30 @@ export default function EarthGlobe() {
         source.entities.add({ id: `${event.id}-track`, polyline: { positions: [Cartesian3.fromDegrees(event.lng - 0.8, event.lat - 2, 300), Cartesian3.fromDegrees(event.lng + 0.8, event.lat + 2, 300)], width: 1, material: system.withAlpha(0.2), arcType: ArcType.GEODESIC } });
       }
     }
+    for (const event of liveEvents) {
+      if (!layers.has(event.layerId)) continue;
+      if (filter.types && !filter.types.includes(event.type)) continue;
+      if (filter.region && !`${event.region} ${event.country}`.toLowerCase().includes(filter.region.toLowerCase())) continue;
+      const day = event.date.slice(0, 10);
+      if (day < time.start || day > time.end || day > time.current) continue;
+      const chosen = event.id === selected;
+      const color = chosen ? system : Color.fromCssColorString(phenomenonColor(event.type));
+      source.entities.add({
+        id: event.id,
+        name: `${event.title} · ${event.sourceLabel} · LIVE`,
+        properties: { eventId: event.id, source: event.source, sourceUrl: event.sourceUrl },
+        position: Cartesian3.fromDegrees(event.lng, event.lat, 250),
+        point: {
+          pixelSize: chosen ? 12 : lod === "global" ? 6 : 8,
+          color,
+          outlineColor: chosen ? system : Color.WHITE.withAlpha(0.85),
+          outlineWidth: chosen ? 3 : 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+    }
     ref.current?.scene.requestRender();
-  }, [layers, filter, time, lod, opacity, selected, ready]);
+  }, [layers, filter, time, lod, opacity, selected, ready, liveEvents]);
 
   return <div className="absolute inset-0 earth-renderer" data-earth-engine="cesium">
     <div ref={container} className="absolute inset-0" />
