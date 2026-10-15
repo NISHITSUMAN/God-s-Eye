@@ -156,8 +156,8 @@ export async function runCommand(raw: string) {
           ? "/datasets"
           : term === "data catalog"
             ? "/data"
-            : \`/\${term}\`;
-    return reply(\`Opening the \${term} section.\`, [{ label: "Open section", run: \`navigate:\${route}\` }]);
+            : "/" + term;
+    return reply("Opening the " + term + " section.", [{ label: "Open section", run: "navigate:" + route }]);
   }
 
   if (/\b(live data|live feeds?|usgs|eonet|public feeds?)\b/.test(q)) {
