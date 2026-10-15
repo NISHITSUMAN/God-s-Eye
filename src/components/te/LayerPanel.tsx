@@ -68,13 +68,16 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
   const nisarCollections = useApp((s) => s.nisarCollections);
   const refreshNISARData = useApp((s) => s.refreshNISARData);
 
-  const changeProduct = (product: string, enabled: boolean) => {
+  const changeProduct = (product: string, enabled: boolean): boolean => {
     const selected = useApp.getState().nisarSelectedProductCodes;
     const next = enabled
       ? [...new Set([...selected, product])]
       : selected.filter((code) => code !== product);
-    if (!next.length) return;
+    // Keep at least one product family selected so the catalogue never silently
+    // remains on the previous query while the UI suggests everything is disabled.
+    if (!next.length) return false;
     void refreshNISARData(next);
+    return true;
   };
 
   useEffect(() => {
@@ -109,8 +112,8 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
               tag="CATALOG"
               disabled={nisarStatus === "loading"}
               onToggle={(enabled) => {
+                if (!changeProduct(p, enabled)) return;
                 useApp.getState().toggleLayer(`prod-${p}`, enabled);
-                changeProduct(p, enabled);
               }}
             />)}
             <div className="mx-2 mt-2 rounded-md border border-border bg-background/40 p-2.5">
