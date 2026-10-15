@@ -430,7 +430,8 @@ export async function searchNISARCoverage(options: {
       bounds: options.bounds ?? null,
       startDate: options.startDate,
       endDate: options.endDate,
-      pageSize: 12,
+      // Keep enough real acquisitions to make historical timeline scrubbing useful.
+      pageSize: 50,
     }),
   ));
   const granules: NISARGranule[] = [];
