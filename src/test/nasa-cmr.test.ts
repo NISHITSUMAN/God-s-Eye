@@ -60,7 +60,7 @@ describe("NASA CMR metadata adapter", () => {
     expect(requested.searchParams.get("has_granules")).toBe("true");
   });
 
-  it("searches granules by collection, AOI bounding box, and temporal range", async () => {
+  it("prefers exact polygon footprints and searches granules by collection, area, and time", async () => {
     const fetchMock = mockCMR({
       hits: 35,
       items: [{
@@ -100,7 +100,8 @@ describe("NASA CMR metadata adapter", () => {
       startDate: "2026-09-10T12:00:00Z",
       producer: "ASF",
       productCode: "GCOV",
-      bounds: { west: 71, south: 19, east: 73, north: 21 },
+      bounds: { west: 71, south: 19, east: 72.5, north: 20.5 },
+      footprint: [[71, 19], [72.5, 19.2], [72.4, 20.5], [71.2, 20], [71, 19]],
       browseUrl: "https://browse.example.org/granule.png",
       dataUrl: "https://data.example.org/granule.h5",
     });
@@ -110,10 +111,10 @@ describe("NASA CMR metadata adapter", () => {
     expect(requested.searchParams.get("bounding_box")).toBe("70,18,74,22");
     expect(requested.searchParams.get("temporal[]")).toBe("2026-09-01T00:00:00Z,2026-09-30T23:59:59Z");
     expect(requested.searchParams.get("page_size")).toBe("12");
-    expect(requested.searchParams.get("browsable")).toBe("true");
+    expect(requested.searchParams.has("browsable")).toBe(false);
   });
 
-  it("discovers real product-family collections and combines matching browsable granules", async () => {
+  it("discovers real product-family collections and combines matching granules", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true, status: 200, json: async () => ({
@@ -157,7 +158,7 @@ describe("NASA CMR metadata adapter", () => {
       bounds: { west: 71, south: 19, east: 73, north: 21 },
       browseUrl: "https://browse.example.org/granule.png",
     });
-    expect(new URL(String(fetchMock.mock.calls[1]?.[0])).searchParams.get("browsable")).toBe("true");
+    expect(new URL(String(fetchMock.mock.calls[1]?.[0])).searchParams.has("browsable")).toBe(false);
   });
 
   it("rejects malformed IDs, dates, and bounds before making a request", async () => {
