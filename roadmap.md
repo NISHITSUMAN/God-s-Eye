@@ -9,15 +9,18 @@
 - Catalog, observation detail, phenomenon detail, methodology, learn, data and report screens.
 
 ## Completed in this maintenance pass
-- Replace the single low-resolution Natural Earth II 3D imagery source with provider configuration, a zoomable tile source, ion imagery support, fallback handling, and visible attribution.
-- Keep ellipsoid terrain as a safe fallback and allow optional ion terrain.
-- Update the project README with honest setup and provider instructions.
-- Remove the accidentally committed test placeholder.
+- Replace the single low-resolution Natural Earth II 3D texture with configurable multi-resolution imagery, optional Cesium ion terrain, fallback handling, and visible source attribution.
+- Fix the imagery status overlay so the normal Esri fallback is not reported as an error.
+- Add selectable public USGS earthquake and NASA EONET natural-event layers to the 2D and 3D Earth views, search, context inspector, event catalog, and shared timeline.
+- Add live NASA CMR collection and granule catalog discovery with optional date and AOI bounding-box filters.
+- Harden AOI/GeoJSON validation, circle distance calculations, timeline range behavior, catalog reactivity, intro accessibility, and browser-storage fallbacks.
+- Make prototype / sample-data limitations explicit across app metadata, detail pages, and reports.
+- Replace the boilerplate README, add automated test/lint/build checks, and remove a stray test placeholder.
 
 ## Still requires live validation or real integrations
-- Run `bun run test`, `bun run lint`, and `bun run build` in a local/CI environment.
-- Browser-test Cesium imagery requests and 2D/3D state synchronization.
-- Configure a licensed high-resolution satellite imagery provider if satellite imagery is desired.
-- Connect real NISAR products and supporting datasets; all scientific overlays/results remain sample-only.
-- Replace the frontend AI simulator with a secured backend if real AI/tool calling is needed.
-- Audit accessibility and every route in a live browser.
+- Browser-test Cesium imagery requests, external-source CORS, and 2D/3D state synchronization with the intended provider and credentials.
+- Configure a licensed high-resolution imagery provider appropriate for deployment, and confirm usage terms and attribution.
+- Download, decode, and visualize real NISAR rasters; CMR currently retrieves catalog metadata only. Some product access may require Earthdata Login.
+- Build and validate scientific processing for radar change detection, soil moisture, interferometry, deformation, and other analyses; sample analysis flows are not scientific measurements.
+- Replace the front-end command simulator with a secured AI/backend integration if real language-model tool calling is needed.
+- Run an end-to-end, route-by-route browser accessibility and responsive audit, especially on mobile WebGL devices.
