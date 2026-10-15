@@ -5,7 +5,17 @@ import type { Feature, Geometry, Polygon, Position } from "geojson";
 
 export type DrawTool = "point" | "rectangle" | "polygon" | "circle";
 export interface AOI { name: string; feature: Feature<Geometry>; areaKm2: number; bounds: number[]; center: { lat: number; lng: number } }
-export interface AnalysisResult { id: string; aoi: AOI; datasets: string[]; start: string; end: string; kind: string; provenance: "sample" }
+export type AnalysisTimeMode = "range" | "before-after" | "historical" | "baseline" | "time-series";
+export interface AnalysisResult {
+  id: string;
+  aoi: AOI;
+  datasets: string[];
+  start: string;
+  end: string;
+  kind: string;
+  timeMode?: AnalysisTimeMode;
+  provenance: "sample";
+}
 
 export const ANALYSIS_CATALOG = [
   "Change Detection", "Difference", "Ratio", "Anomaly", "Trend", "Temporal Comparison",
