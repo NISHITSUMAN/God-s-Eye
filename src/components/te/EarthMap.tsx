@@ -296,16 +296,16 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         id: "india-admin-fill",
         type: "fill",
         source: "india-admin",
-        paint: { "fill-color": "#FF9933", "fill-opacity": 0.12 },
+        paint: { "fill-color": "#FF8A00", "fill-opacity": 0.22 },
       });
       map.addLayer({
         id: "india-admin-outline",
         type: "line",
         source: "india-admin",
         paint: {
-          "line-color": "#FF9933",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.6, 7, 3.2, 10, 4],
-          "line-opacity": 0.98,
+          "line-color": "#FF7A00",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2.8, 5, 3.8, 7, 4.8, 10, 6],
+          "line-opacity": 1,
         },
       });
       map.addLayer({
@@ -364,6 +364,10 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
           "circle-stroke-width": 1.5,
         },
       });
+
+      // Keep the India-aligned administrative outline visible above event/coverage fills.
+      map.moveLayer("india-admin-fill", "nisar-coverage-fill");
+      map.moveLayer("india-admin-outline");
       update();
 
       map.on("click", "event-points", event => {
