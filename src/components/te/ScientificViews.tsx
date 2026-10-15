@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ClientOnly, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { sampleDataProvider, DATASETS, type EarthEventRecord } from "@/lib/earth-data";
 import { useApp } from "@/lib/store";
+import { fetchNISARGranuleByConceptId, type NISARGranule } from "@/lib/nasa-cmr";
 import { PageShell } from "./PageShell";
 import { Timeline } from "./Timeline";
 import { runCommand } from "@/lib/ai-agent";
@@ -12,7 +13,69 @@ export function SpatialView(){return <div className="relative h-[370px] border-y
 export function Metadata({rows}:{rows:(readonly [string,string])[]}){return <dl className="metadata-grid">{rows.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;}
 function Empty({title="DATA UNAVAILABLE",message="The requested observation could not be retrieved."}:{title?:string;message?:string}){return <div className="scientific-band"><h2 className="label-xs text-amber">{title}</h2><p className="my-4 text-sm text-muted-foreground">{message}</p><Button asChild variant="outline"><Link to="/observations">EXPLORE ANOTHER OBSERVATION</Link></Button></div>;}
 export function ObservationDetail({id}:{id:string}) {
-  const nisar = useApp(state => state.nisarGranules.find(item => item.id === id));
+  const cachedNisar = useApp(state => state.nisarGranules.find(item => item.id === id));
+  const [fetchedNisar, setFetchedNisar] = useState<NISARGranule | null>(null);
+  const [fetchState, setFetchState] = useState<"loading" | "ready" | "error" | "idle">(
+    id.startsWith("nisar:") ? "loading" : "idle",
+  );
+  const [fetchError, setFetchError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    if (!id.startsWith("nisar:")) {
+      setFetchedNisar(null);
+      setFetchError("");
+      setFetchState("idle");
+      return;
+    }
+    const existing = useApp.getState().nisarGranules.find(item => item.id === id);
+    if (existing) {
+      setFetchedNisar(existing);
+      setFetchError("");
+      setFetchState("ready");
+      return;
+    }
+
+    let cancelled = false;
+    setFetchedNisar(null);
+    setFetchError("");
+    setFetchState("loading");
+    void fetchNISARGranuleByConceptId(id.slice("nisar:".length))
+      .then(granule => {
+        if (cancelled) return;
+        setFetchedNisar(granule);
+        setFetchState("ready");
+      })
+      .catch(reason => {
+        if (cancelled) return;
+        setFetchError(reason instanceof Error ? reason.message : "NASA CMR could not load this granule.");
+        setFetchState("error");
+      });
+    return () => { cancelled = true; };
+  }, [id, retryCount]);
+
+  const nisar = id.startsWith("nisar:") ? cachedNisar ?? fetchedNisar : undefined;
+  if (id.startsWith("nisar:") && !nisar && fetchState === "loading") {
+    return <PageShell eyebrow="OBSERVATION / LIVE NISAR" title="Loading acquisition metadata" intro="Fetching this shared NISAR granule directly from NASA CMR.">
+      <section className="scientific-band" role="status">
+        <div className="label-xs text-primary">NASA CMR</div>
+        <p className="mt-3 text-sm text-muted-foreground">Loading the exact acquisition record. This can take a few seconds depending on the network.</p>
+      </section>
+    </PageShell>;
+  }
+  if (id.startsWith("nisar:") && !nisar && fetchState === "error") {
+    return <PageShell eyebrow="OBSERVATION / LIVE NISAR" title="Acquisition record unavailable" intro="This shared URL could not be resolved from NASA CMR.">
+      <section className="scientific-band" role="alert">
+        <p className="text-sm text-muted-foreground">{fetchError || "NASA CMR did not return this granule."}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => setRetryCount(value => value + 1)}>RETRY CMR LOOKUP</Button>
+          <Button asChild variant="outline"><Link to="/data">OPEN DATA EXPLORER</Link></Button>
+          <Button asChild variant="outline"><Link to="/observations">ALL OBSERVATIONS</Link></Button>
+        </div>
+      </section>
+    </PageShell>;
+  }
+
   if (nisar) {
     const bounds = nisar.bounds
       ? [nisar.bounds.west, nisar.bounds.south, nisar.bounds.east, nisar.bounds.north].map(value => value.toFixed(5)).join(", ")
