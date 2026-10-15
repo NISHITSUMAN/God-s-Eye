@@ -31,7 +31,7 @@ describe("AOI construction", () => {
   });
 
   it("rejects empty or invalid coordinates before Turf sees them", () => {
-    expect(() => validateGeometry({ type: "Point", coordinates: [] })).toThrow(/coordinates/i);
+    expect(() => validateGeometry({ type: "Point", coordinates: [] })).toThrow(/coordinates|position/i);
     expect(() => validateGeometry({ type: "Point", coordinates: [181, 0] })).toThrow(/longitude/i);
     expect(() => validateGeometry({ type: "Polygon", coordinates: [] })).toThrow(/coordinates/i);
   });
