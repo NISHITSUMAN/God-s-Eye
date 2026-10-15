@@ -14,8 +14,9 @@ import {
   ArcType,
   JulianDate,
   UrlTemplateImageryProvider,
-  ImageryLayer,
+  TileMapServiceImageryProvider,
   Ion,
+  IonImageryProvider,
   createWorldTerrainAsync,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -23,23 +24,29 @@ import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
 import { phenomenonColor } from "@/lib/mock-data";
 
-/**
- * Imagery is a basemap only. Scientific events/footprints remain clearly
- * labelled sample data until a real observations provider is connected.
- *
- * Optional provider config:
- *   VITE_CESIUM_ION_TOKEN=... (recommended)
- *   VITE_CESIUM_ION_IMAGERY_ASSET_ID=2 (optional override; verify asset/license)
- *   VITE_EARTH_IMAGERY_URL=https://.../{z}/{x}/{y}.png (optional XYZ source)
- *   VITE_EARTH_IMAGERY_ATTRIBUTION=...
- *   VITE_CESIUM_TERRAIN=true (optional, needs ion access)
- */
-const FALLBACK_ATTRIBUTION = "OpenStreetMap contributors";
-const XYZ_URL = import.meta.env.VITE_EARTH_IMAGERY_URL as string | undefined;
-const XYZ_ATTRIBUTION = import.meta.env.VITE_EARTH_IMAGERY_ATTRIBUTION as string | undefined;
 const ION_TOKEN = import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined;
 const ION_IMAGERY_ASSET_ID = Number(import.meta.env.VITE_CESIUM_ION_IMAGERY_ASSET_ID || 2);
+const CUSTOM_IMAGERY_URL = import.meta.env.VITE_EARTH_IMAGERY_URL as string | undefined;
+const CUSTOM_IMAGERY_ATTRIBUTION = import.meta.env.VITE_EARTH_IMAGERY_ATTRIBUTION as string | undefined;
 const USE_ION_TERRAIN = String(import.meta.env.VITE_CESIUM_TERRAIN || "false").toLowerCase() === "true";
+
+function esriWorldImagery() {
+  return new UrlTemplateImageryProvider({
+    // ArcGIS REST uses z/y/x order. Cesium substitutes these template variables by name.
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    maximumLevel: 19,
+  });
+}
+
+function configuredImagery() {
+  if (!CUSTOM_IMAGERY_URL) return null;
+  return new UrlTemplateImageryProvider({
+    url: CUSTOM_IMAGERY_URL,
+    credit: CUSTOM_IMAGERY_ATTRIBUTION || "Configured imagery provider",
+    maximumLevel: 22,
+  });
+}
 
 export default function EarthGlobe() {
   const container = useRef<HTMLDivElement>(null);
@@ -47,7 +54,7 @@ export default function EarthGlobe() {
   const [viewerInstance, setViewerInstance] = useState<Viewer | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageryLabel, setImageryLabel] = useState("OpenStreetMap");
+  const [imageryLabel, setImageryLabel] = useState("Loading imagery");
   const layers = useApp(s => s.layers);
   const filter = useApp(s => s.filter);
   const time = useApp(s => s.time);
@@ -60,8 +67,12 @@ export default function EarthGlobe() {
   useEffect(() => {
     if (!container.current) return;
     let cancelled = false;
+    let fallbackBusy = false;
+    let activeProvider: UrlTemplateImageryProvider | IonImageryProvider | undefined;
+    let activeLayer: ReturnType<Viewer["imageryLayers"]["addImageryProvider"]> | undefined;
     const token = ION_TOKEN?.trim();
     if (token) Ion.defaultAccessToken = token;
+
     const viewer = new Viewer(container.current, {
       baseLayer: false,
       terrainProvider: new EllipsoidTerrainProvider(),
@@ -81,53 +92,72 @@ export default function EarthGlobe() {
     ref.current = viewer;
     setViewerInstance(viewer);
 
-    const loadImagery = async () => {
+    const naturalEarthFallback = async () => {
+      if (cancelled || viewer.isDestroyed()) return;
       try {
-        if (XYZ_URL) {
-          const provider = new UrlTemplateImageryProvider({
-            url: XYZ_URL,
-            credit: XYZ_ATTRIBUTION || FALLBACK_ATTRIBUTION,
-            maximumLevel: 19,
-          });
-          if (!cancelled && !viewer.isDestroyed()) {
-            viewer.imageryLayers.addImageryProvider(provider);
-            setImageryLabel(XYZ_ATTRIBUTION || "Configured imagery provider");
-            setReady(true);
-            setError(null);
-            return;
-          }
-        }
-        if (token) {
-          try {
-            const provider = await (await import("cesium")).IonImageryProvider.fromAssetId(ION_IMAGERY_ASSET_ID);
-            if (!cancelled && !viewer.isDestroyed()) {
-              viewer.imageryLayers.addImageryProvider(provider);
-              setImageryLabel("Cesium ion imagery");
-              setReady(true);
-              setError(null);
-              return;
-            }
-          } catch (ionError) {
-            console.warn("Cesium ion imagery unavailable; using public fallback.", ionError);
-          }
-        }
-        // OSM standard raster tiles are a globally available fallback, not satellite imagery.
-        const provider = new UrlTemplateImageryProvider({
-          url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-          credit: "© OpenStreetMap contributors",
-          minimumLevel: 0,
-          maximumLevel: 19,
-        });
-        if (!cancelled && !viewer.isDestroyed()) {
-          viewer.imageryLayers.addImageryProvider(provider);
-          setImageryLabel(XYZ_ATTRIBUTION || "© OpenStreetMap contributors");
-          setReady(true);
-          setError(null);
-        }
-      } catch (loadError) {
-        console.error("Earth imagery failed to load.", loadError);
-        if (!cancelled && !viewer.isDestroyed()) setError("Earth tiles could not load. Check your connection or imagery provider settings.");
+        const provider = await TileMapServiceImageryProvider.fromUrl("/cesium/Assets/Textures/NaturalEarthII");
+        if (cancelled || viewer.isDestroyed()) return;
+        if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
+        activeLayer = viewer.imageryLayers.addImageryProvider(provider);
+        activeProvider = undefined;
+        setImageryLabel("Natural Earth II fallback");
+        setReady(true);
+        setError("High-resolution imagery is unavailable; using a low-resolution global fallback.");
+      } catch (fallbackError) {
+        console.error("Bundled Earth fallback could not be loaded.", fallbackError);
+        setError("Earth imagery could not be loaded. Check your network and imagery provider settings.");
       }
+    };
+
+    const installEsriFallback = () => {
+      if (cancelled || viewer.isDestroyed()) return;
+      const provider = esriWorldImagery();
+      if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
+      activeLayer = viewer.imageryLayers.addImageryProvider(provider);
+      activeProvider = provider;
+      setImageryLabel("Esri World Imagery");
+      setReady(true);
+      setError("The preferred imagery source failed; using Esri satellite imagery.");
+      provider.errorEvent.addEventListener((tileError) => {
+        if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
+        fallbackBusy = true;
+        void naturalEarthFallback().finally(() => { fallbackBusy = false; });
+      });
+    };
+
+    const installConfigured = (provider: UrlTemplateImageryProvider | IonImageryProvider, label: string) => {
+      if (cancelled || viewer.isDestroyed()) return;
+      if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
+      activeLayer = viewer.imageryLayers.addImageryProvider(provider);
+      activeProvider = provider;
+      setImageryLabel(label);
+      setReady(true);
+      setError(null);
+      provider.errorEvent.addEventListener((tileError) => {
+        if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
+        fallbackBusy = true;
+        installEsriFallback();
+        fallbackBusy = false;
+      });
+    };
+
+    const loadImagery = async () => {
+      const custom = configuredImagery();
+      if (custom) {
+        installConfigured(custom, CUSTOM_IMAGERY_ATTRIBUTION || "Configured imagery");
+        return;
+      }
+      if (token) {
+        try {
+          const provider = await IonImageryProvider.fromAssetId(ION_IMAGERY_ASSET_ID);
+          if (cancelled || viewer.isDestroyed()) return;
+          installConfigured(provider, "Cesium ion imagery");
+          return;
+        } catch (ionError) {
+          console.warn("Cesium ion imagery unavailable; using public imagery fallback.", ionError);
+        }
+      }
+      if (!cancelled && !viewer.isDestroyed()) installEsriFallback();
     };
     void loadImagery();
 
@@ -136,9 +166,10 @@ export default function EarthGlobe() {
         if (!cancelled && !viewer.isDestroyed()) {
           viewer.terrainProvider = terrain;
           viewer.scene.globe.depthTestAgainstTerrain = true;
+          viewer.scene.requestRender();
         }
       }).catch(terrainError => {
-        console.warn("Optional terrain is unavailable; keeping ellipsoid terrain.", terrainError);
+        console.warn("Optional terrain is unavailable; retaining ellipsoid terrain.", terrainError);
       });
     }
 
@@ -158,6 +189,7 @@ export default function EarthGlobe() {
     viewer.camera.percentageChanged = 0.02;
     const view = useApp.getState().view;
     viewer.camera.setView({ destination: Cartesian3.fromDegrees(view.lng, view.lat, view.altitude * Ellipsoid.WGS84.maximumRadius) });
+
     const removeCamera = viewer.camera.moveEnd.addEventListener(() => {
       const pos = viewer.camera.positionCartographic;
       useApp.getState().syncView({ lat: CesiumMath.toDegrees(pos.latitude), lng: CesiumMath.toDegrees(pos.longitude), altitude: pos.height / Ellipsoid.WGS84.maximumRadius });
@@ -238,7 +270,8 @@ export default function EarthGlobe() {
 
   return <div className="absolute inset-0 earth-renderer" data-earth-engine="cesium">
     <div ref={container} className="absolute inset-0" />
-    {!ready && <div className="earth-status label-xs" role="status">{error ?? "LOADING EARTH IMAGERY"}</div>}
-    <div className="earth-attribution">{imageryLabel} · CesiumJS · sample overlays</div>
+    {!ready && !error && <div className="earth-status label-xs" role="status">LOADING EARTH IMAGERY</div>}
+    {error && <div className="earth-status label-xs" role="status">{error}</div>}
+    <div className="earth-attribution">{imageryLabel} · sample scientific overlays</div>
   </div>;
 }
