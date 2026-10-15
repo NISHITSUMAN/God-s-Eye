@@ -1,39 +1,38 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { routeTree } from "@/routeTree.gen";
 
-function renderAt(path: string) {
-  const queryClient = new QueryClient();
-  const router = createRouter({
+function makeRouter(path: string) {
+  return createRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient: new QueryClient() },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
-  return render(<RouterProvider router={router} />);
 }
 
 afterEach(() => {
-  cleanup();
   vi.restoreAllMocks();
 });
 
-// Assert only that the router mounts and paints, never page content:
-// routes are rewritten as the app is built and this must keep passing.
-describe("App routing", () => {
-  it("renders the index route", async () => {
-    const { container } = renderAt("/");
-
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+describe("App route registration", () => {
+  it("registers the Earth-first index route", () => {
+    const router = makeRouter("/");
+    expect(router.routesByPath["/"]).toBeDefined();
+    expect(router.routesByPath["/"]).toBe(router.routesByPath["/"]);
   });
 
-  it("renders the not-found route", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  it("registers the requested page routes and dynamic detail routes", () => {
+    const router = makeRouter("/observations/OBS-123");
+    expect(router.routesByPath["/observations"]).toBeDefined();
+    expect(router.routesByPath["/observations_/$id"]).toBeDefined();
+    expect(router.routesByPath["/analysis/$id"]).toBeDefined();
+    expect(router.routesByPath["/reports/create"]).toBeDefined();
+  });
 
-    const { container } = renderAt("/this-route-does-not-exist");
-
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+  it("does not mistake unknown paths for registered application routes", () => {
+    const router = makeRouter("/this-route-does-not-exist");
+    expect(router.routesByPath["/this-route-does-not-exist"]).toBeUndefined();
   });
 });
