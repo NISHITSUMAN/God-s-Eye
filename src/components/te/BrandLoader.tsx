@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import { LogoMark } from "./Logo";
 
+function hasSeenIntro() {
+  try { return sessionStorage.getItem("te-intro") === "1"; } catch { return false; }
+}
+function markIntroSeen() {
+  try { sessionStorage.setItem("te-intro", "1"); } catch { /* session storage can be unavailable */ }
+}
+
 export function BrandLoader() {
   const [phase, setPhase] = useState<"show" | "fade" | "gone">("show");
   useEffect(() => {
-    if (sessionStorage.getItem("te-intro") || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (hasSeenIntro() || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setPhase("gone");
       return;
     }
     const a = setTimeout(() => setPhase("fade"), 2400);
-    const b = setTimeout(() => { setPhase("gone"); sessionStorage.setItem("te-intro", "1"); }, 3200);
+    const b = setTimeout(() => { setPhase("gone"); markIntroSeen(); }, 3200);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, []);
   if (phase === "gone") return null;
