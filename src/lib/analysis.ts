@@ -2,6 +2,7 @@ import area from "@turf/area";
 import bbox from "@turf/bbox";
 import circle from "@turf/circle";
 import type { Feature, Geometry, Polygon, Position } from "geojson";
+import type { NISARGranule } from "./nasa-cmr";
 
 export type DrawTool = "point" | "rectangle" | "polygon" | "circle";
 export interface AOI { name: string; feature: Feature<Geometry>; areaKm2: number; bounds: number[]; center: { lat: number; lng: number } }
@@ -14,7 +15,9 @@ export interface AnalysisResult {
   end: string;
   kind: string;
   timeMode?: AnalysisTimeMode;
-  provenance: "sample";
+  provenance: "sample" | "live-catalog";
+  matchedGranules?: NISARGranule[];
+  catalogWarnings?: string[];
 }
 
 export const ANALYSIS_CATALOG = [
