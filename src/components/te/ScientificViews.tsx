@@ -137,7 +137,62 @@ export function PhenomenonDetail({phenomenon}:{phenomenon:string}) {
 }
 const STAGES=[['Data','Acquire radar products and provenance from verified providers.'],['Preprocessing','Calibrate, geocode, coregister and align acquisitions.'],['Quality check','Assess masks, coherence, geometric validity and missing data.'],['Change detection','Compare measurements using a method appropriate to the product.'],['Supporting data','Cross-check terrain, optical, rainfall and thermal context.'],['Interpretation','Separate measured evidence from plausible explanations.'],['Confidence','Summarize uncertainty and supporting evidence, not certainty.'],['Result','Publish visualization, evidence, sources and limitations.']];
 export function Methodology(){return <PageShell eyebrow="METHODOLOGY" title="From observation to understanding" intro="A traceable scientific pipeline; connected processing is not yet available.">{STAGES.map(([title,description],i)=><details key={title} className="scientific-band"><summary className="flex cursor-pointer items-center gap-4"><span className="font-mono text-primary">{String(i+1).padStart(2,'0')}</span><h2 className="text-lg">{title}</h2></summary><p className="mt-4 max-w-2xl text-sm text-muted-foreground">{description}</p></details>)}</PageShell>;}
-export function DatasetCatalog(){return <PageShell eyebrow="DATA SOURCES" title="Dataset catalog" intro="Availability and provenance are shown for every integration.">{DATASETS.map(d=><section key={d.id} className="scientific-band flex flex-wrap justify-between gap-3"><div><h2 className="text-lg">{d.name}</h2><p className="mt-2 text-sm text-muted-foreground">{d.description}</p></div><span className="label-xs text-amber">{d.availability}</span></section>)}</PageShell>;}
+export function DatasetCatalog() {
+  const collections = useApp(state => state.nisarCollections);
+  const collectionHits = useApp(state => state.nisarCollectionHits);
+  const productCollections = useApp(state => state.nisarProductCollections);
+  const granules = useApp(state => state.nisarGranules);
+  const status = useApp(state => state.nisarStatus);
+  const updatedAt = useApp(state => state.nisarUpdatedAt);
+  const error = useApp(state => state.nisarError);
+  const refresh = useApp(state => state.refreshNISARData);
+
+  return <PageShell eyebrow="DATA SOURCES" title="Dataset catalog" intro="Live NASA CMR records, actual acquisition metadata, and separately labelled public context and demo-only sources.">
+    <section className="scientific-band mb-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="label-xs text-primary">REAL NISAR COLLECTION CATALOG · NASA CMR</div>
+          <h2 className="mt-2 text-lg">Product availability and versions</h2>
+          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">These rows come from the public NASA Common Metadata Repository. Collection metadata indicates products available in the catalog; exact acquisition availability depends on area and date, and does not itself mean the raster has been downloaded or analysed.</p>
+        </div>
+        <div className="text-right font-mono text-[10px] text-muted-foreground">{status.toUpperCase()}<div className="mt-1">{collections.length} collections shown / {collectionHits.toLocaleString()} matches</div></div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button disabled={status === "loading"} onClick={() => void refresh()}><ArrowUpRight className="size-3.5"/>{status === "loading" ? "REFRESHING CATALOG…" : "REFRESH LIVE CATALOG"}</Button>
+        <Button asChild variant="outline"><Link to="/data">OPEN GRANULE SEARCH</Link></Button>
+        {updatedAt && <span className="font-mono text-[10px] text-muted-foreground">UPDATED {updatedAt.replace("T", " ").slice(0, 19)} UTC</span>}
+      </div>
+      {error && <p role="status" className="mt-3 text-xs text-amber">{error}</p>}
+      {productCollections.length ? <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {productCollections.map(collection => {
+          const matches = granules.filter(granule => granule.collectionConceptId === collection.conceptId);
+          return <article key={collection.conceptId} className="min-w-0 rounded-md border border-border bg-background/35 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h3 className="break-words font-mono text-[11px] text-primary">{collection.shortName}</h3>
+              <span className="font-mono text-[9px] text-muted-foreground">{matches.length} loaded</span>
+            </div>
+            <p className="mt-2 text-sm">{collection.title}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Version {collection.version || "not supplied"} · Level {collection.processingLevel || "not supplied"}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{collection.abstract || "No abstract was supplied in the public catalog response."}</p>
+            <div className="mt-3 flex flex-wrap gap-3 text-[11px]">
+              <a href={collection.metadataUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CMR metadata ↗</a>
+              <a href={collection.earthdataSearchUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Earthdata search ↗</a>
+              {collection.doi && <a href={`https://doi.org/${encodeURIComponent(collection.doi)}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">DOI ↗</a>}
+            </div>
+          </article>;
+        })}
+      </div> : <div className="mt-4 rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">{status === "loading" ? "Searching NASA CMR for NISAR product collections…" : "No live product collections are currently loaded. Refresh the catalog or check browser/network access to Earthdata."}</div>}
+    </section>
+    <section className="scientific-band mb-3">
+      <div className="label-xs text-subtle">INTEGRATION STATUS REFERENCE</div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Catalog availability is not the same as processing readiness. Product families marked as live support metadata, granule search and browse links. Full raster download/processing requires authenticated data access and a validated scientific workflow.</p>
+    </section>
+    {DATASETS.map(dataset => <section key={dataset.id} className="scientific-band flex flex-wrap justify-between gap-3">
+      <div><h2 className="text-lg">{dataset.name}</h2><p className="mt-2 text-sm text-muted-foreground">{dataset.description}</p></div>
+      <span className={`label-xs ${dataset.availability.startsWith("LIVE") ? "text-ok" : dataset.availability.includes("SAMPLE") ? "text-amber" : "text-subtle"}`}>{dataset.availability}</span>
+    </section>)}
+  </PageShell>;
+}
 const TOPICS=[['NISAR','L- and S-band synthetic aperture radar observations of land and ice.'],['SAR','Radar measures returned energy, day or night and through clouds.'],['Backscatter','Returned energy varies with roughness, moisture, geometry and structure.'],['Polarization','HH, HV, VV and VH describe transmitted and received polarization.'],['Coherence','Similarity between acquisitions; loss can have several causes.'],['Interferometry','Phase differences can reveal line-of-sight displacement.'],['Deformation','Displacement is relative to a reference, not necessarily vertical motion.'],['Change Detection','Compare aligned acquisitions and distinguish noise from surface change.'],['Radar Geometry','Look angle, layover and shadow influence what radar observes.'],['Why Radar','Radar provides cloud-independent imaging, but interpretation needs context.'],['How Third Eye Interprets Data','Measured evidence, detection and interpretation remain separate.']];
 export function ScienceLearn(){const [topic,setTopic]=useState(0);const [roughness,setRoughness]=useState(40);return <div><div className="mb-6 flex flex-wrap gap-1">{TOPICS.map(([title],i)=><Button key={title} size="sm" variant={topic===i?'secondary':'ghost'} onClick={()=>setTopic(i)}>{title}</Button>)}</div><div className="scientific-band"><h2 className="text-xl">{TOPICS[topic]?.[0]}</h2><p className="mt-3 max-w-2xl text-sm text-muted-foreground">{TOPICS[topic]?.[1]}</p><div className="my-6 border-y border-border py-6"><div className="flex justify-between font-mono text-xs"><span>TRANSMIT</span><span>SURFACE</span><span>RETURN</span></div><svg viewBox="0 0 800 160" className="mt-4 w-full" role="img" aria-label="Illustrative radar return diagram"><path d="M 30 20 L 390 125 L 770 30" fill="none" stroke="var(--primary)" strokeWidth="2" strokeDasharray="7 5"/><path d="M0 130 L100 130 L160 120 L200 130 L300 125 L390 135 L460 115 L520 132 L600 124 L700 135 L800 129" fill="none" stroke="var(--muted-foreground)" strokeWidth="3"/><circle cx="770" cy="30" r={6+roughness/7} fill="var(--amber)" opacity={.3+roughness/150}/></svg><label className="mt-4 flex items-center gap-4 text-xs">Illustrative surface roughness<input aria-label="Surface roughness" type="range" min="0" max="100" value={roughness} onChange={e=>setRoughness(+e.target.value)} className="flex-1 accent-primary"/>{roughness}%</label><p className="mt-3 label-xs">CONCEPTUAL DIAGRAM — NOT A PHYSICAL RADAR MODEL</p></div></div></div>;}
 export function ReportBuilder() {
