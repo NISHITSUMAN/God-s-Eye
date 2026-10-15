@@ -139,4 +139,104 @@ export function Methodology(){return <PageShell eyebrow="METHODOLOGY" title="Fro
 export function DatasetCatalog(){return <PageShell eyebrow="DATA SOURCES" title="Dataset catalog" intro="Availability and provenance are shown for every integration.">{DATASETS.map(d=><section key={d.id} className="scientific-band flex flex-wrap justify-between gap-3"><div><h2 className="text-lg">{d.name}</h2><p className="mt-2 text-sm text-muted-foreground">{d.description}</p></div><span className="label-xs text-amber">{d.availability}</span></section>)}</PageShell>;}
 const TOPICS=[['NISAR','L- and S-band synthetic aperture radar observations of land and ice.'],['SAR','Radar measures returned energy, day or night and through clouds.'],['Backscatter','Returned energy varies with roughness, moisture, geometry and structure.'],['Polarization','HH, HV, VV and VH describe transmitted and received polarization.'],['Coherence','Similarity between acquisitions; loss can have several causes.'],['Interferometry','Phase differences can reveal line-of-sight displacement.'],['Deformation','Displacement is relative to a reference, not necessarily vertical motion.'],['Change Detection','Compare aligned acquisitions and distinguish noise from surface change.'],['Radar Geometry','Look angle, layover and shadow influence what radar observes.'],['Why Radar','Radar provides cloud-independent imaging, but interpretation needs context.'],['How Third Eye Interprets Data','Measured evidence, detection and interpretation remain separate.']];
 export function ScienceLearn(){const [topic,setTopic]=useState(0);const [roughness,setRoughness]=useState(40);return <div><div className="mb-6 flex flex-wrap gap-1">{TOPICS.map(([title],i)=><Button key={title} size="sm" variant={topic===i?'secondary':'ghost'} onClick={()=>setTopic(i)}>{title}</Button>)}</div><div className="scientific-band"><h2 className="text-xl">{TOPICS[topic]?.[0]}</h2><p className="mt-3 max-w-2xl text-sm text-muted-foreground">{TOPICS[topic]?.[1]}</p><div className="my-6 border-y border-border py-6"><div className="flex justify-between font-mono text-xs"><span>TRANSMIT</span><span>SURFACE</span><span>RETURN</span></div><svg viewBox="0 0 800 160" className="mt-4 w-full" role="img" aria-label="Illustrative radar return diagram"><path d="M 30 20 L 390 125 L 770 30" fill="none" stroke="var(--primary)" strokeWidth="2" strokeDasharray="7 5"/><path d="M0 130 L100 130 L160 120 L200 130 L300 125 L390 135 L460 115 L520 132 L600 124 L700 135 L800 129" fill="none" stroke="var(--muted-foreground)" strokeWidth="3"/><circle cx="770" cy="30" r={6+roughness/7} fill="var(--amber)" opacity={.3+roughness/150}/></svg><label className="mt-4 flex items-center gap-4 text-xs">Illustrative surface roughness<input aria-label="Surface roughness" type="range" min="0" max="100" value={roughness} onChange={e=>setRoughness(+e.target.value)} className="flex-1 accent-primary"/>{roughness}%</label><p className="mt-3 label-xs">CONCEPTUAL DIAGRAM — NOT A PHYSICAL RADAR MODEL</p></div></div></div>;}
-export function ReportBuilder(){const [sections,setSections]=useState(['Overview','Map','Evidence','Limitations']);const [status,setStatus]=useState<'READY'|'GENERATING'|'SUCCESS'|'ERROR'>('READY');const [message,setMessage]=useState('');const result=useApp(s=>s.analyses.find(r=>r.id===s.investigation.lastAnalysisId));const generate=async()=>{setStatus('GENERATING');try{const {jsPDF}=await import('jspdf');const doc=new jsPDF();doc.setFontSize(18);doc.text('THIRD EYE — SAMPLE INVESTIGATION',15,20);doc.setFontSize(10);let y=35;for(const section of sections){if(y>250){doc.addPage();y=20;}doc.text(section.toUpperCase(),15,y);y+=8;const text=section==='Overview'?`${result?.kind??'Earth investigation'} · ${result?.aoi.name??'No analysis selected'}`:section==='Data Sources'?result?.datasets.join(', ')??'No sources selected':section==='Limitations'?'Sample data and geometry only. No live NASA/NISAR measurements or scientific processing.':section==='Map'?'Map visualization is available in the app preview. Geographic image capture is not included in this text report.':'No measured evidence is available. This report documents a sample workflow.';const lines=doc.splitTextToSize(text,175);doc.text(lines,15,y);y+=lines.length*6+10;}doc.save('third-eye-sample-report.pdf');setStatus('SUCCESS');setMessage('The sample PDF was generated.');}catch{setStatus('ERROR');setMessage('Report generation failed. Retry or change sections.');}};return <PageShell eyebrow="REPORT BUILDER" title="Investigation report" intro="A report of selected evidence, context, and limitations."><div className="flex flex-wrap gap-4">{['Overview','Map','Before/After','Timeline','Data Sources','Evidence','Interpretation','Limitations'].map(section=><label key={section} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={sections.includes(section)} onChange={()=>setSections(sections.includes(section)?sections.filter(x=>x!==section):[...sections,section])}/>{section}</label>)}</div><div className="scientific-band mt-6"><div className="label-xs text-amber">SAMPLE REPORT PREVIEW</div>{sections.map(section=><section key={section} className="scientific-band"><h2 className="text-lg">{section}</h2>{section==='Map'?<SpatialView/>:<p className="mt-3 text-sm text-muted-foreground">{section==='Overview'?`${result?.kind??'Earth investigation'} · ${result?.aoi.name??'No analysis selected'}`:'No measured scientific output is claimed. Sample data, geometry and selected investigation context only.'}</p>}</section>)}</div><div className="flex items-center gap-4"><Button disabled={!sections.length||status==='GENERATING'} onClick={()=>void generate()}><Download/>{status==='GENERATING'?'GENERATING':'GENERATE SAMPLE PDF'}</Button><span role="status" className="label-xs">{status}</span></div>{message&&<p className="mt-3 text-sm text-muted-foreground">{message}</p>}</PageShell>;}
+export function ReportBuilder() {
+  const [sections, setSections] = useState(["Overview", "Map", "Evidence", "Limitations"]);
+  const [status, setStatus] = useState<"READY" | "GENERATING" | "SUCCESS" | "ERROR">("READY");
+  const [message, setMessage] = useState("");
+  const result = useApp(state => state.analyses.find(item => item.id === state.investigation.lastAnalysisId));
+  const isLiveCatalog = result?.provenance === "live-catalog";
+  const granules = result?.matchedGranules ?? [];
+
+  const contentForSection = (section: string) => {
+    if (section === "Overview") {
+      return [
+        result?.kind ?? "Earth investigation",
+        result?.aoi.name ?? "No area selected",
+        result ? `Time range: ${result.start} to ${result.end}` : "No analysis selected",
+        result ? `Source: ${isLiveCatalog ? "NASA CMR live granule catalog" : "sample workflow"}` : "",
+      ].filter(Boolean).join("\n");
+    }
+    if (section === "Data Sources") {
+      if (!result) return "No data sources selected.";
+      const header = `Selected product families: ${result.datasets.join(", ")}`;
+      if (!isLiveCatalog) return `${header}\nSample workflow only. No live measurements.`;
+      return [
+        header,
+        `Catalog matches: ${granules.length}`,
+        ...granules.slice(0, 10).map(granule =>
+          `${granule.productCode} · ${(granule.startDate || "date not reported").slice(0, 10)} · ${granule.granuleId}\nEarthdata: ${granule.earthdataSearchUrl}`,
+        ),
+      ].join("\n");
+    }
+    if (section === "Limitations") {
+      return isLiveCatalog
+        ? "This is a live catalog discovery report. It records real NASA CMR metadata, spatial extents and optional browse quicklooks. No full-resolution radar raster was downloaded or processed. No change detection, deformation, flood extent, fire scar or hazard prediction is claimed. Full product access may require Earthdata-authenticated services."
+        : "Sample data and geometry only. No live NASA/NISAR measurements or scientific processing.";
+    }
+    if (section === "Evidence") {
+      return isLiveCatalog
+        ? `Source: NASA CMR / ASF DAAC. ${granules.length} matching granule records were returned for this AOI and date range. A catalog match is evidence of an available acquisition, not evidence of a surface change.`
+        : "No measured evidence is available. The report documents a sample workflow.";
+    }
+    if (section === "Interpretation") {
+      return isLiveCatalog
+        ? "No scientific interpretation is generated by catalog search alone. Inspect the original product and run a validated workflow before making geophysical conclusions."
+        : "No measured scientific output is claimed. This is a sample interpretation.";
+    }
+    if (section === "Map") return "The interactive map is available in Third Eye. The PDF includes text and acquisition references but does not capture a map image.";
+    if (section === "Before/After") return isLiveCatalog
+      ? "Before/after comparison requires suitable co-registered product acquisitions and a validated raster-processing pipeline; none was run during catalog discovery."
+      : "Before/after comparison is illustrative sample context only.";
+    if (section === "Timeline") return result ? `Selected analysis dates: ${result.start} to ${result.end}. Use the app timeline for individual acquisition timestamps.` : "No analysis time range is selected.";
+    return "No measured output is available.";
+  };
+
+  const generate = async () => {
+    setStatus("GENERATING");
+    setMessage("");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      doc.setFontSize(17);
+      doc.text(isLiveCatalog ? "THIRD EYE — NISAR DATA DISCOVERY" : "THIRD EYE — SAMPLE INVESTIGATION", 15, 20);
+      doc.setFontSize(9);
+      doc.text(`Generated ${new Date().toISOString()} · ${isLiveCatalog ? "LIVE CATALOG METADATA" : "SAMPLE CONTEXT"}`, 15, 27);
+      let y = 38;
+      for (const section of sections) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.text(section.toUpperCase(), 15, y);
+        y += 8;
+        doc.setFontSize(9);
+        const lines = doc.splitTextToSize(contentForSection(section), 178) as string[];
+        for (const line of lines) {
+          if (y > 278) { doc.addPage(); y = 20; }
+          doc.text(line, 15, y);
+          y += 5;
+        }
+        y += 7;
+      }
+      doc.save(isLiveCatalog ? "third-eye-nisar-data-discovery.pdf" : "third-eye-sample-report.pdf");
+      setStatus("SUCCESS");
+      setMessage(isLiveCatalog
+        ? "The NISAR catalog discovery PDF was generated. It contains acquisition metadata, not processed scientific measurements."
+        : "The clearly labelled sample PDF was generated.");
+    } catch {
+      setStatus("ERROR");
+      setMessage("Report generation failed. Retry or change sections.");
+    }
+  };
+
+  return <PageShell eyebrow="REPORT BUILDER" title="Investigation report" intro="Generate a traceable report of the selected area, time range, data sources and limitations.">
+    <div className="mb-4 flex flex-wrap gap-4">{["Overview", "Map", "Before/After", "Timeline", "Data Sources", "Evidence", "Interpretation", "Limitations"].map(section => <label key={section} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={sections.includes(section)} onChange={() => setSections(sections.includes(section) ? sections.filter(item => item !== section) : [...sections, section])}/>{section}</label>)}</div>
+    <div className="scientific-band mt-6">
+      <div className={`label-xs ${isLiveCatalog ? "text-primary" : "text-amber"}`}>{isLiveCatalog ? "LIVE CATALOG DISCOVERY REPORT PREVIEW" : "SAMPLE REPORT PREVIEW"}</div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{isLiveCatalog
+        ? "This report documents actual NASA CMR granule records and browse links. It does not claim that the underlying radar has been processed."
+        : "This report documents the current sample workflow. It does not claim that real NISAR measurements were analysed."}</p>
+      {sections.map(section => <section key={section} className="scientific-band"><h2 className="text-lg">{section}</h2>{section === "Map" ? <SpatialView/> : <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">{contentForSection(section)}</p>}</section>)}
+    </div>
+    <div className="mt-4 flex items-center gap-4"><Button disabled={!sections.length || status === "GENERATING"} onClick={() => void generate()}><Download/>{status === "GENERATING" ? "GENERATING" : isLiveCatalog ? "GENERATE DISCOVERY PDF" : "GENERATE SAMPLE PDF"}</Button><span role="status" className="label-xs">{status}</span></div>
+    {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
+  </PageShell>;
+}
