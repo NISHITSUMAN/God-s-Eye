@@ -9,6 +9,10 @@ const requiredFiles = [
   "Assets/approximateTerrainHeights.json",
   "Assets/IAU2006_XYS/IAU2006_XYS_18.json",
 ];
+const ionCreditCandidates = [
+  "Widgets/Images/ion-credit.png",
+  "Assets/Images/ion-credit.png",
+];
 
 async function exists(filePath) {
   try { await access(filePath); return true; } catch { return false; }
@@ -67,5 +71,15 @@ for (const outputRoot of existingRoots) {
     console.error(`Cesium files are still missing in ${outputRoot}: ${missing.join(", ")}`);
     process.exit(1);
   }
-  console.log(`Verified Cesium runtime assets at ${path.relative(root, targetRoot)}`);
+  const hasIonCredit = await Promise.all(
+    ionCreditCandidates.map((relativePath) => exists(path.join(targetRoot, relativePath))),
+  );
+  if (!hasIonCredit.some(Boolean)) {
+    console.error(`Cesium ion-credit.png is missing from ${path.relative(root, targetRoot)}.`);
+    process.exit(1);
+  }
+  const creditPath = ionCreditCandidates[hasIonCredit.findIndex(Boolean)];
+  console.log(
+    `Verified Cesium runtime assets at ${path.relative(root, targetRoot)} including ${creditPath}`,
+  );
 }
