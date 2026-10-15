@@ -15,10 +15,12 @@ import {
   JulianDate,
   UrlTemplateImageryProvider,
   TileMapServiceImageryProvider,
+  ArcGisMapServerImageryProvider,
   Ion,
   IonImageryProvider,
   createWorldTerrainAsync,
 } from "cesium";
+import type { ImageryProvider } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
@@ -30,11 +32,19 @@ const CUSTOM_IMAGERY_URL = import.meta.env.VITE_EARTH_IMAGERY_URL as string | un
 const CUSTOM_IMAGERY_ATTRIBUTION = import.meta.env.VITE_EARTH_IMAGERY_ATTRIBUTION as string | undefined;
 const USE_ION_TERRAIN = String(import.meta.env.VITE_CESIUM_TERRAIN || "false").toLowerCase() === "true";
 
-function esriWorldImagery() {
+async function esriWorldImagery(): Promise<ImageryProvider> {
+  // Use Cesium's native ArcGIS provider rather than constructing REST tile URLs by hand.
+  return ArcGisMapServerImageryProvider.fromUrl(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+    { enablePickFeatures: false },
+  );
+}
+
+function openStreetMapImagery(): ImageryProvider {
   return new UrlTemplateImageryProvider({
-    // ArcGIS REST uses z/y/x order. Cesium substitutes these template variables by name.
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    credit: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    credit: "© OpenStreetMap contributors",
+    minimumLevel: 0,
     maximumLevel: 19,
   });
 }
@@ -51,7 +61,6 @@ function configuredImagery() {
 export default function EarthGlobe() {
   const container = useRef<HTMLDivElement>(null);
   const ref = useRef<Viewer | null>(null);
-  const [viewerInstance, setViewerInstance] = useState<Viewer | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageryLabel, setImageryLabel] = useState("Loading imagery");
@@ -69,8 +78,10 @@ export default function EarthGlobe() {
     if (!container.current) return;
     let cancelled = false;
     let fallbackBusy = false;
-    let activeProvider: UrlTemplateImageryProvider | IonImageryProvider | undefined;
+    let activeProvider: ImageryProvider | undefined;
     let activeLayer: ReturnType<Viewer["imageryLayers"]["addImageryProvider"]> | undefined;
+    setReady(false);
+    setError(null);
     const token = ION_TOKEN?.trim();
     if (token) Ion.defaultAccessToken = token;
 
@@ -87,11 +98,13 @@ export default function EarthGlobe() {
       fullscreenButton: false,
       infoBox: false,
       selectionIndicator: false,
-      requestRenderMode: true,
+      // Continuous rendering is more reliable on mobile WebGL implementations while imagery
+      // and terrain are arriving. The explicit fallback chain prevents a permanent black canvas.
+      requestRenderMode: false,
+      resolutionScale: window.innerWidth < 760 ? 0.8 : 1,
       maximumRenderTimeChange: Infinity,
     });
     ref.current = viewer;
-    setViewerInstance(viewer);
 
     const naturalEarthFallback = async () => {
       if (cancelled || viewer.isDestroyed()) return;
@@ -134,11 +147,11 @@ export default function EarthGlobe() {
       setImageryLabel(label);
       setReady(true);
       setError(null);
+      viewer.scene.requestRender();
       provider.errorEvent.addEventListener((tileError) => {
         if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
         fallbackBusy = true;
-        installEsriFallback("The configured imagery source failed; switched to Esri World Imagery.");
-        fallbackBusy = false;
+        void installEsriFallback("The configured imagery source failed; switched to Esri World Imagery.").finally(() => { fallbackBusy = false; });
       });
     };
 
@@ -158,7 +171,7 @@ export default function EarthGlobe() {
           console.warn("Cesium ion imagery unavailable; using public imagery fallback.", ionError);
         }
       }
-      if (!cancelled && !viewer.isDestroyed()) installEsriFallback();
+      if (!cancelled && !viewer.isDestroyed()) await installEsriFallback();
     };
     void loadImagery();
 
@@ -178,6 +191,7 @@ export default function EarthGlobe() {
     ds.current = source;
     void viewer.dataSources.add(source);
     viewer.scene.backgroundColor = Color.fromCssColorString(getComputedStyle(document.documentElement).getPropertyValue("--earth-space").trim() || "#050A0F");
+    viewer.scene.globe.baseColor = Color.fromCssColorString("#182733");
     viewer.scene.globe.enableLighting = false;
     viewer.scene.globe.showGroundAtmosphere = false;
     viewer.scene.globe.depthTestAgainstTerrain = false;
@@ -190,6 +204,14 @@ export default function EarthGlobe() {
     viewer.camera.percentageChanged = 0.02;
     const view = useApp.getState().view;
     viewer.camera.setView({ destination: Cartesian3.fromDegrees(view.lng, view.lat, view.altitude * Ellipsoid.WGS84.maximumRadius) });
+    viewer.scene.requestRender();
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+      if (!viewer.isDestroyed()) {
+        viewer.resize();
+        viewer.scene.requestRender();
+      }
+    }) : null;
+    if (resizeObserver && container.current) resizeObserver.observe(container.current);
 
     const removeCamera = viewer.camera.moveEnd.addEventListener(() => {
       const pos = viewer.camera.positionCartographic;
@@ -222,6 +244,7 @@ export default function EarthGlobe() {
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       handler.destroy();
       removeCamera();
       removeTick();
