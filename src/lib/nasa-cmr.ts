@@ -386,9 +386,13 @@ export async function searchNISARCoverage(options: {
   bounds?: CMRBounds | null;
   startDate: string;
   endDate: string;
+  productCodes?: string[];
 }): Promise<NISARCoverageResult> {
   const catalog = await searchNISARCollections(100);
-  const productCodes = ["GCOV", "GSLC", "GUNW", "SME2"];
+  const availableProductCodes = ["GCOV", "GSLC", "GUNW", "GOFF", "RSLC", "RIFG", "ROFF", "RUNW", "SME2"];
+  const requestedCodes = options.productCodes?.length ? options.productCodes : ["GCOV", "GSLC", "GUNW", "SME2"];
+  const productCodes = [...new Set(requestedCodes.map(code => code.toUpperCase()).filter(code => availableProductCodes.includes(code))];
+  if (!productCodes.length) throw new Error("Select at least one supported NISAR product family: GCOV, GSLC, GUNW, GOFF, RSLC, RIFG, ROFF, RUNW or SME2.");
   const selected: NISARCollection[] = [];
   const used = new Set<string>();
 
