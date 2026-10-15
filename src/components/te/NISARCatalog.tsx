@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Database, Search, RefreshCw, Satellite, Clock3, MapPin, FileSearch, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/lib/store";
 import {
@@ -26,10 +26,14 @@ function SourceLink({ href, children }: { href: string; children: string }) {
 export function NISARCatalog() {
   const aoi = useApp((state) => state.aoi);
   const time = useApp((state) => state.time);
-  const [state, setState] = useState<LoadState>("idle");
-  const [collections, setCollections] = useState<NISARCollection[]>([]);
-  const [hits, setHits] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const collections = useApp((state) => state.nisarCollections);
+  const hits = useApp((state) => state.nisarCollectionHits);
+  const state = useApp((state) => state.nisarStatus) as LoadState;
+  const error = useApp((state) => state.nisarError);
+  const liveGranules = useApp((state) => state.nisarGranules);
+  const liveGranuleHits = useApp((state) => state.nisarGranuleHits);
+  const liveUpdatedAt = useApp((state) => state.nisarUpdatedAt);
+  const refreshCoverage = useApp((state) => state.refreshNISARData);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [granules, setGranules] = useState<NISARGranule[]>([]);
@@ -48,26 +52,19 @@ export function NISARCatalog() {
   }, [collections, query]);
   const visible = showAll ? filtered : filtered.slice(0, 8);
 
-  const loadCollections = async () => {
-    setState("loading");
-    setError(null);
-    try {
-      const result = await searchNISARCollections(100);
-      setCollections(result.collections);
-      setHits(result.hits);
-      setState("ready");
-      setGranules([]);
-      setGranuleHits(0);
-      setGranuleState("idle");
-      setGranuleError(null);
-      setSelectedId((previous) => result.collections.some((item) => item.conceptId === previous)
-        ? previous
-        : result.collections[0]?.conceptId ?? "");
-    } catch (reason) {
-      setState("error");
-      setError(reason instanceof Error ? reason.message : "NASA CMR metadata could not be loaded.");
-    }
+  const loadCollections = () => {
+    setGranules([]);
+    setGranuleHits(0);
+    setGranuleState("idle");
+    setGranuleError(null);
+    void refreshCoverage();
   };
+
+  useEffect(() => {
+    if (collections.length && !collections.some((item) => item.conceptId === selectedId)) {
+      setSelectedId(collections[0]?.conceptId ?? "");
+    }
+  }, [collections, selectedId]);
 
   const loadGranules = async () => {
     if (!selected) return;
@@ -80,6 +77,7 @@ export function NISARCatalog() {
         : null;
       const result = await searchNISARGranules({
         collectionConceptId: selected.conceptId,
+        collectionShortName: selected.shortName,
         bounds: validAOI,
         startDate: time.start,
         endDate: time.end,
@@ -111,15 +109,57 @@ export function NISARCatalog() {
         </div>
         <button type="button" onClick={() => void loadCollections()} disabled={state === "loading"} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-primary/40 px-3 text-xs text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60">
           <RefreshCw className={cn("size-3.5", state === "loading" && "animate-spin")} />
-          {state === "loading" ? "QUERYING NASA CMR" : state === "ready" ? "REFRESH CATALOG" : "LOAD LIVE CATALOG"}
+          {state === "loading" ? "QUERYING NASA CMR" : (state === "ready" || state === "partial") ? "REFRESH CATALOG" : "LOAD LIVE CATALOG"}
         </button>
       </header>
+
+      <div className="border-b border-border p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="label-xs text-primary">LIVE NISAR ACQUISITIONS</div>
+            <h3 className="mt-1 text-base font-medium">Real browseable radar products for your area</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">These footprints and preview links come from current NASA CMR granule records. The preview is a browse image, not the full scientific raster.</p>
+          </div>
+          <div className="text-right font-mono text-[10px] text-muted-foreground">
+            <div>{liveGranules.length} shown · {liveGranuleHits.toLocaleString()} matching records</div>
+            {liveUpdatedAt && <div className="mt-1">UPDATED {liveUpdatedAt.slice(0, 16).replace("T", " ")} UTC</div>}
+          </div>
+        </div>
+        {liveGranules.length ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {liveGranules.slice(0, 4).map((granule) => (
+              <article key={granule.conceptId} className="flex min-w-0 gap-3 rounded-lg border border-border bg-background/35 p-3">
+                {granule.browseUrl ? (
+                  <a href={granule.browseUrl} target="_blank" rel="noopener noreferrer" className="block h-24 w-28 shrink-0 overflow-hidden rounded border border-border bg-background">
+                    <img src={granule.browseUrl} alt={`NISAR ${granule.productCode} browse image`} loading="lazy" className="h-full w-full object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+                  </a>
+                ) : (
+                  <div className="flex h-24 w-28 shrink-0 items-center justify-center rounded border border-border bg-background font-mono text-[9px] text-subtle">NO PREVIEW</div>
+                )}
+                <div className="min-w-0">
+                  <div className="font-mono text-[10px] text-primary">{granule.productCode} · {granule.startDate?.slice(0, 10) ?? "DATE N/A"}</div>
+                  <div className="mt-1 break-all text-[11px] leading-snug">{granule.granuleId}</div>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <SourceLink href={granule.earthdataSearchUrl}>Earthdata record</SourceLink>
+                    <SourceLink href={granule.metadataUrl}>CMR metadata</SourceLink>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
+            {state === "loading" ? "Searching NASA CMR for current granule coverage…" : state === "error" ? (error || "The live catalog is unavailable.") : "No browseable granules matched the current India area and date range. Refresh or widen the date range."}
+          </div>
+        )}
+        {state === "partial" && error && <p className="mt-2 text-[11px] text-amber">{error}</p>}
+      </div>
 
       <div className="border-b border-border p-4 sm:p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-background/30 p-3">
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground"><Database className="size-3.5" />COLLECTIONS</div>
-            <div className="mt-2 font-mono text-2xl">{state === "ready" ? hits.toLocaleString() : "—"}</div>
+            <div className="mt-2 font-mono text-2xl">{(state === "ready" || state === "partial") ? hits.toLocaleString() : "—"}</div>
             <div className="mt-1 text-[10px] text-subtle">CMR-reported matching records</div>
           </div>
           <div className="rounded-lg border border-border bg-background/30 p-3">
@@ -145,8 +185,9 @@ export function NISARCatalog() {
         )}
         {state === "loading" && <div role="status" className="py-6 text-center text-xs text-muted-foreground">Requesting collection metadata from NASA CMR…</div>}
         {state === "error" && <div role="alert" className="rounded-lg border border-alert/40 bg-alert/5 p-3 text-xs text-alert">{error}</div>}
+        {state === "partial" && error && <div role="status" className="rounded-lg border border-amber/30 bg-amber/5 p-3 text-xs text-amber">Some product searches did not finish: {error}</div>}
 
-        {state === "ready" && (
+        {(state === "ready" || state === "partial") && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs text-muted-foreground">Showing {visible.length} of {filtered.length} loaded collections ({hits.toLocaleString()} matches reported)</div>
@@ -217,14 +258,17 @@ export function NISARCatalog() {
                   <div className="mb-2 text-xs text-muted-foreground">{granules.length} granules shown · {granuleHits.toLocaleString()} matches reported by CMR</div>
                   {granules.length === 0 && <p className="rounded border border-border p-3 text-xs text-muted-foreground">No granules matched this collection, AOI and date range. Try widening the date window or removing the AOI.</p>}
                   <div className="space-y-2">
-                    {granules.map((granule) => <div key={granule.conceptId} className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-background/40 p-3">
-                      <div className="min-w-0">
+                    {granules.map((granule) => <div key={granule.conceptId} className="flex flex-wrap items-start gap-3 rounded-md border border-border bg-background/40 p-3">
+                      {granule.browseUrl && <a href={granule.browseUrl} target="_blank" rel="noopener noreferrer" className="block h-20 w-24 shrink-0 overflow-hidden rounded border border-border bg-background"><img src={granule.browseUrl} alt={`NISAR ${granule.productCode} browse preview`} loading="lazy" className="h-full w-full object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /></a>}
+                      <div className="min-w-0 flex-1">
                         <div className="break-all font-mono text-[10px] text-foreground">{granule.granuleId}</div>
                         <div className="mt-1 text-[10px] text-muted-foreground">{formatDate(granule.startDate)}{granule.endDate ? ` — ${formatDate(granule.endDate)}` : ""}{granule.producer ? ` · ${granule.producer}` : ""}</div>
-                      </div>
-                      <div className="flex shrink-0 gap-3">
-                        <SourceLink href={granule.metadataUrl}>Metadata</SourceLink>
-                        <SourceLink href={granule.earthdataSearchUrl}>Open product</SourceLink>
+                        {granule.bounds && <div className="mt-1 text-[9px] text-subtle">BOUNDS {granule.bounds.west.toFixed(2)}, {granule.bounds.south.toFixed(2)} → {granule.bounds.east.toFixed(2)}, {granule.bounds.north.toFixed(2)}</div>}
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          <SourceLink href={granule.metadataUrl}>Metadata</SourceLink>
+                          <SourceLink href={granule.earthdataSearchUrl}>Open product</SourceLink>
+                          {granule.dataUrl && <SourceLink href={granule.dataUrl}>Data URL</SourceLink>}
+                        </div>
                       </div>
                     </div>)}
                   </div>
