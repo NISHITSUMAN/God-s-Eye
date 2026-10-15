@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 import { PHENOMENA } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const NISAR_PRODUCTS = ["RSLC", "RIFG", "RUNW", "ROFF", "GSLC", "GCOV", "GUNW", "GOFF", "SME2"];
 
-function Row({ id, label, swatch, demo }: { id: string; label: string; swatch?: string; demo?: boolean }) {
+function Row({ id, label, swatch, demo, tag }: { id: string; label: string; swatch?: string; demo?: boolean; tag?: "LIVE" | "SAMPLE" }) {
   const on = useApp((s) => s.layers.has(id));
   const toggle = useApp((s) => s.toggleLayer);
   const opacity = useApp((s) => s.opacity[id] ?? 100);
@@ -18,6 +19,7 @@ function Row({ id, label, swatch, demo }: { id: string; label: string; swatch?: 
         <button onClick={() => toggle(id)} className="flex flex-1 items-center gap-2.5 text-left" aria-pressed={on}>
           <span className="size-2 rounded-sm" style={{ background: swatch ?? "var(--primary)", opacity: on ? 1 : 0.3 }} />
           <span className="flex-1">{label}</span>
+          {tag && <span className={cn("font-mono text-[9px] tracking-wider", tag === "LIVE" ? "text-ok" : "text-subtle")}>{tag}</span>}
           {demo && <span className="font-mono text-[9px] tracking-wider text-subtle">DEMO</span>}
         </button>
         <button onClick={() => setOpen(!open)} className="opacity-0 group-hover:opacity-100" aria-label="Layer settings"><SlidersHorizontal className="size-3.5 text-subtle" /></button>
@@ -52,6 +54,16 @@ export function LayerPanel() {
   const setMode = useApp((s) => s.setMode);
   const advanced = useApp((s) => s.advanced);
   const setAdvanced = useApp((s) => s.setAdvanced);
+  const liveEnabled = useApp((s) => s.layers.has("live-usgs") || s.layers.has("live-eonet"));
+  const liveStatus = useApp((s) => s.liveDataStatus);
+  const liveEvents = useApp((s) => s.liveEvents);
+  const liveUpdatedAt = useApp((s) => s.liveDataUpdatedAt);
+  const liveDataError = useApp((s) => s.liveDataError);
+  const refreshLiveData = useApp((s) => s.refreshLiveData);
+
+  useEffect(() => {
+    if (liveEnabled && liveStatus === "idle") void refreshLiveData();
+  }, [liveEnabled, liveStatus, refreshLiveData]);
   return (
     <div className="glass flex max-h-full w-[244px] flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 pt-3">
@@ -76,6 +88,28 @@ export function LayerPanel() {
             {PHENOMENA.map((p) => <Row key={p.id} id={p.id} label={p.label} swatch={p.color} />)}
           </Section>
         )}
+        <Section title="Live data sources">
+          <Row id="live-usgs" label="USGS earthquakes · 24 h" swatch="#a98bff" tag="LIVE" />
+          <Row id="live-eonet" label="NASA EONET events" swatch="#4fbf6a" tag="LIVE" />
+          <div className="mx-2 mt-2 rounded-md border border-border bg-background/40 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="label-xs">FEED STATUS</span>
+              <span className={cn("font-mono text-[9px]", liveStatus === "ready" ? "text-ok" : liveStatus === "partial" || liveStatus === "error" ? "text-amber" : "text-subtle")}>
+                {liveStatus === "idle" ? "NOT LOADED" : liveStatus === "loading" ? "FETCHING" : liveStatus === "ready" ? "LIVE READY" : liveStatus === "partial" ? "PARTIAL" : "UNAVAILABLE"}
+              </span>
+            </div>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+              {liveStatus === "ready" ? `${liveEvents.length} records · updated ${liveUpdatedAt?.replace("T", " ").slice(0, 16) ?? "just now"} UTC` :
+                liveStatus === "loading" ? "Fetching public records from USGS and NASA EONET." :
+                liveStatus === "error" ? (liveDataError ?? "No live records are available. Check your connection.") :
+                liveStatus === "partial" ? (liveDataError ?? `${liveEvents.length} records retained; one source may be unavailable.`) :
+                "Toggle a live layer to fetch public records. These are not NISAR measurements."}
+            </p>
+            <Button size="sm" variant="outline" className="mt-2 h-7 w-full text-[10px]" disabled={liveStatus === "loading"} onClick={() => void refreshLiveData()}>
+              {liveStatus === "loading" ? "FETCHING SOURCES…" : "REFRESH LIVE FEEDS"}
+            </Button>
+          </div>
+        </Section>
         <Section title="Terrain" defaultOpen={false}>
           <Row id="elevation" label="Elevation" swatch="#8a9aa6" demo />
           <Row id="slope" label="Slope" swatch="#8a9aa6" demo />
