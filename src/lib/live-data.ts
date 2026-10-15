@@ -76,10 +76,22 @@ async function fetchJSON<T>(url: string): Promise<T> {
   }
 }
 
-const validCoordinate = (lng: unknown, lat: unknown): lng is number =>
+const validCoordinate = (lng: unknown, lat: unknown): boolean =>
   typeof lng === "number" && typeof lat === "number" &&
   Number.isFinite(lng) && Number.isFinite(lat) &&
   Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
+
+function safeSourceUrl(value: string | null | undefined, fallback: string, kind: "USGS" | "NASA EONET") {
+  try {
+    const url = new URL(value || fallback);
+    const trustedHost = kind === "USGS"
+      ? url.hostname === "usgs.gov" || url.hostname.endsWith(".usgs.gov")
+      : url.hostname === "nasa.gov" || url.hostname.endsWith(".nasa.gov");
+    return url.protocol === "https:" && trustedHost ? url.href : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 /** Fetch USGS's public GeoJSON feed of earthquakes reported over the last day. */
 export async function fetchUSGSEarthquakes(): Promise<LiveEarthEvent[]> {
@@ -93,7 +105,7 @@ export async function fetchUSGSEarthquakes(): Promise<LiveEarthEvent[]> {
     const coordinates = feature.geometry?.coordinates;
     if (!p || !Array.isArray(coordinates) || coordinates.length < 2) return [];
     const [lng, lat, depth] = coordinates;
-    if (!validCoordinate(lng, lat)) return [];
+    if (typeof lng !== "number" || typeof lat !== "number" || !validCoordinate(lng, lat)) return [];
     const time = typeof p.time === "number" ? new Date(p.time) : new Date(NaN);
     if (!Number.isFinite(time.getTime())) return [];
     const magnitude = typeof p.mag === "number" && Number.isFinite(p.mag) ? p.mag : null;
@@ -109,7 +121,7 @@ export async function fetchUSGSEarthquakes(): Promise<LiveEarthEvent[]> {
       sourceId,
       source: "USGS",
       sourceLabel: "USGS Earthquake Feed",
-      sourceUrl: p.url || p.detail || "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php",
+      sourceUrl: safeSourceUrl(p.url || p.detail, "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php", "USGS"),
       layerId: "live-usgs",
       type: "earthquake",
       title,
@@ -138,8 +150,10 @@ function meanCoordinate(value: unknown): [number, number] | null {
   const positions: Array<[number, number]> = [];
   const visit = (item: unknown) => {
     if (!Array.isArray(item) || positions.length >= 2000) return;
-    if (item.length >= 2 && validCoordinate(item[0], item[1])) {
-      positions.push([item[0], item[1]]);
+    const lng = item[0];
+    const lat = item[1];
+    if (typeof lng === "number" && typeof lat === "number" && validCoordinate(lng, lat)) {
+      positions.push([lng, lat]);
       return;
     }
     item.forEach(visit);
@@ -179,7 +193,7 @@ export async function fetchNASAEONETEvents(): Promise<LiveEarthEvent[]> {
       sourceId,
       source: "NASA EONET",
       sourceLabel: "NASA Earth Observatory Natural Event Tracker",
-      sourceUrl: event.link || `https://eonet.gsfc.nasa.gov/`,
+      sourceUrl: safeSourceUrl(event.link, "https://eonet.gsfc.nasa.gov/", "NASA EONET"),
       layerId: "live-eonet",
       type,
       title: event.title || category,
