@@ -166,7 +166,7 @@ export const useApp = create<AppState>((set) => ({
     return {
       selectedId: id,
       view: { lat: event.lat, lng: event.lng, altitude: 0.015 },
-      lod: "regional",
+      lod: lodForAltitude(0.015),
       viewNonce: state.viewNonce + 1,
       monthIndex,
       time: {
@@ -175,7 +175,7 @@ export const useApp = create<AppState>((set) => ({
         end: eventDay > state.time.end ? eventDay : state.time.end,
         current: eventDay,
       },
-      investigation: { ...state.investigation, selectedId: id, region: event.country, types: [event.type] },
+      investigation: { ...state.investigation, selectedId: id, region: event.region || event.country, types: [event.type] },
     };
   }),
   setHovered: (hoveredId) => set({ hoveredId }),
