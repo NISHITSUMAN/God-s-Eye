@@ -160,8 +160,12 @@ export async function searchNISARCollections(pageSize = 100): Promise<{ collecti
 }
 
 function validateDate(value: string, label: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00Z`))) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new Error(`${label} must be a valid YYYY-MM-DD date.`);
+  }
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) {
+    throw new Error(`${label} must be a real calendar date in YYYY-MM-DD format.`);
   }
   return value;
 }
