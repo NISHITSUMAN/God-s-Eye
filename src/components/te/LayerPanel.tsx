@@ -16,14 +16,14 @@ function Row({ id, label, swatch, demo, tag }: { id: string; label: string; swat
   return (
     <div>
       <div className={cn("group flex h-8 items-center gap-2 rounded-md px-2 text-[13px] transition-colors hover:bg-elevated", on ? "text-foreground" : "text-subtle")}>
-        <button onClick={() => toggle(id)} className="flex flex-1 items-center gap-2.5 text-left" aria-pressed={on}>
+        <button onClick={() => toggle(id)} disabled={demo} title={demo ? "This visualization is not connected in the current build." : undefined} className="flex flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed" aria-pressed={on} aria-disabled={demo || undefined}>
           <span className="size-2 rounded-sm" style={{ background: swatch ?? "var(--primary)", opacity: on ? 1 : 0.3 }} />
           <span className="flex-1">{label}</span>
           {tag && <span className={cn("font-mono text-[9px] tracking-wider", tag === "LIVE" ? "text-ok" : "text-subtle")}>{tag}</span>}
           {demo && <span className="font-mono text-[9px] tracking-wider text-subtle">DEMO</span>}
         </button>
-        <button onClick={() => setOpen(!open)} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100" aria-label="Layer settings"><SlidersHorizontal className="size-3.5 text-subtle" /></button>
-        <button onClick={() => toggle(id)} aria-label="Toggle visibility">{on ? <Eye className="size-3.5 text-muted-foreground" /> : <EyeOff className="size-3.5 text-subtle" />}</button>
+        <button onClick={() => setOpen(!open)} disabled={demo} title={demo ? "No settings are available for an unconnected demo layer." : undefined} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed" aria-label="Layer settings" aria-disabled={demo || undefined}><SlidersHorizontal className="size-3.5 text-subtle" /></button>
+        <button onClick={() => toggle(id)} disabled={demo} title={demo ? "Visualization not connected." : undefined} aria-label="Toggle visibility" aria-disabled={demo || undefined}>{on ? <Eye className="size-3.5 text-muted-foreground" /> : <EyeOff className="size-3.5 text-subtle" />}</button>
       </div>
       {open && (
         <div className="flex items-center gap-2 px-2 pb-2 pl-6">
