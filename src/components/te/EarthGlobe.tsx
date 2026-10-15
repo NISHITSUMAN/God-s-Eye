@@ -5,6 +5,7 @@ import {
   Cartesian3,
   Color,
   CustomDataSource,
+  GeoJsonDataSource,
   EllipsoidTerrainProvider,
   Ellipsoid,
   Math as CesiumMath,
@@ -72,6 +73,7 @@ export default function EarthGlobe() {
   const opacity = useApp(s => s.opacity);
   const selected = useApp(s => s.selectedId);
   const liveEvents = useApp(s => s.liveEvents);
+  const nisarGranules = useApp(s => s.nisarGranules);
   const nonce = useApp(s => s.viewNonce);
   const ds = useRef<CustomDataSource | null>(null);
 
@@ -86,6 +88,7 @@ export default function EarthGlobe() {
     const token = ION_TOKEN?.trim();
     if (token) Ion.defaultAccessToken = token;
 
+    let boundaryDataSource: GeoJsonDataSource | null = null;
     let viewer: Viewer;
     try {
       viewer = new Viewer(container.current, {
@@ -236,6 +239,24 @@ export default function EarthGlobe() {
     const source = new CustomDataSource("Third Eye sample observations");
     ds.current = source;
     void viewer.dataSources.add(source);
+    const boundaryColor = Color.fromCssColorString("#FF9933");
+    void GeoJsonDataSource.load("/data/jammu-kashmir-ladakh.geojson", {
+      clampToGround: true,
+      stroke: boundaryColor,
+      strokeWidth: 4,
+      fill: boundaryColor.withAlpha(0.14),
+    }).then(async (boundary) => {
+      if (cancelled || viewer.isDestroyed()) return;
+      boundaryDataSource = boundary;
+      for (const entity of boundary.entities.values) {
+        const name = entity.properties?.name?.getValue(JulianDate.now());
+        if (typeof name === "string") entity.name = `${name} · India official boundary representation`;
+      }
+      await viewer.dataSources.add(boundary);
+      viewer.scene.requestRender();
+    }).catch((boundaryError) => {
+      console.error("India-aligned Jammu and Kashmir / Ladakh boundary overlay could not load.", boundaryError);
+    });
     viewer.scene.backgroundColor = Color.fromCssColorString(getComputedStyle(document.documentElement).getPropertyValue("--earth-space").trim() || "#050A0F");
     viewer.scene.globe.baseColor = Color.fromCssColorString("#182733");
     viewer.scene.globe.enableLighting = false;
@@ -361,6 +382,41 @@ export default function EarthGlobe() {
         source.entities.add({ id: `${event.id}-track`, polyline: { positions: [Cartesian3.fromDegrees(event.lng - 0.8, event.lat - 2, 300), Cartesian3.fromDegrees(event.lng + 0.8, event.lat + 2, 300)], width: 1, material: system.withAlpha(0.2), arcType: ArcType.GEODESIC } });
       }
     }
+    for (const granule of nisarGranules) {
+      if (!layers.has("nisar-coverage") || !granule.bounds) continue;
+      const day = (granule.startDate || "").slice(0, 10);
+      if (day && (day < time.start || day > time.end || day > time.current)) continue;
+      const footprint = granule.footprint && granule.footprint.length >= 3
+        ? [...granule.footprint, granule.footprint[0]!]
+        : [
+            [granule.bounds.west, granule.bounds.south] as [number, number],
+            [granule.bounds.east, granule.bounds.south] as [number, number],
+            [granule.bounds.east, granule.bounds.north] as [number, number],
+            [granule.bounds.west, granule.bounds.north] as [number, number],
+            [granule.bounds.west, granule.bounds.south] as [number, number],
+          ];
+      const positions = footprint.map(point => Cartesian3.fromDegrees(point[0], point[1], 350));
+      const chosen = granule.id === selected;
+      const color = chosen ? system : Color.fromCssColorString("#2EC4FF");
+      source.entities.add({
+        id: granule.id,
+        name: `${granule.productCode} · ${day || "date unavailable"} · REAL NISAR COVERAGE`,
+        properties: { eventId: granule.id, source: "NASA CMR", sourceUrl: granule.earthdataSearchUrl, browseUrl: granule.browseUrl },
+        polygon: {
+          hierarchy: new PolygonHierarchy(footprint.slice(0, -1).map(point => Cartesian3.fromDegrees(point[0], point[1]))),
+          material: color.withAlpha(chosen ? 0.2 : 0.07),
+          height: 300,
+          outline: false,
+        },
+        polyline: {
+          positions,
+          width: chosen ? 3 : 1.6,
+          material: color.withAlpha(0.95),
+          arcType: ArcType.GEODESIC,
+        },
+      });
+    }
+
     for (const event of liveEvents) {
       if (!layers.has(event.layerId)) continue;
       if (filter.types && !filter.types.includes(event.type)) continue;
@@ -384,7 +440,7 @@ export default function EarthGlobe() {
       });
     }
     ref.current?.scene.requestRender();
-  }, [layers, filter, time, lod, opacity, selected, ready, liveEvents]);
+  }, [layers, filter, time, lod, opacity, selected, ready, liveEvents, nisarGranules]);
 
   return <div className="absolute inset-0 earth-renderer" data-earth-engine="cesium">
     <div ref={container} className="absolute inset-0" />
