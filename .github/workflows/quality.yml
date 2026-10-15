@@ -29,6 +29,8 @@ jobs:
         run: bun run test
       - name: Run lint
         run: bun run lint
+      - name: Type-check TypeScript
+        run: bunx tsc --noEmit
       - name: Build the Vercel deployment output
         # CI must use the same Nitro target as Vercel, not the wrapper's Cloudflare default.
         run: VERCEL=1 bun run build
