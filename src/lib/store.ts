@@ -35,6 +35,8 @@ export interface AppState {
   liveDataError: string | null;
   refreshLiveData: () => Promise<void>;
   nisarCollections: NISARCollection[];
+  nisarCollectionHits: number;
+  nisarProductCollections: NISARCollection[];
   nisarGranules: NISARGranule[];
   nisarGranuleHits: number;
   nisarStatus: "idle" | "loading" | "ready" | "partial" | "error";
@@ -143,6 +145,8 @@ export const useApp = create<AppState>((set) => ({
     }
   },
   nisarCollections: [],
+  nisarCollectionHits: 0,
+  nisarProductCollections: [],
   nisarGranules: [],
   nisarGranuleHits: 0,
   nisarStatus: "idle",
@@ -165,6 +169,8 @@ export const useApp = create<AppState>((set) => ({
       const result = await searchNISARCoverage({ bounds, startDate, endDate });
       set({
         nisarCollections: result.collections,
+        nisarCollectionHits: result.collectionHits,
+        nisarProductCollections: result.productCollections,
         nisarGranules: result.granules,
         nisarGranuleHits: result.granuleHits,
         nisarStatus: result.warnings.length ? "partial" : "ready",
