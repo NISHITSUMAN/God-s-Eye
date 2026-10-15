@@ -72,6 +72,17 @@ describe("NASA CMR metadata adapter", () => {
           SpatialExtent: {
             HorizontalSpatialDomain: {
               Geometry: {
+                GPolygons: [{
+                  Boundary: {
+                    Points: [
+                      { Longitude: 71, Latitude: 19 },
+                      { Longitude: 72.5, Latitude: 19.2 },
+                      { Longitude: 72.4, Latitude: 20.5 },
+                      { Longitude: 71.2, Latitude: 20 },
+                      { Longitude: 71, Latitude: 19 },
+                    ],
+                  },
+                }],
                 BoundingRectangles: [{ WestBoundingCoordinate: 71, SouthBoundingCoordinate: 19, EastBoundingCoordinate: 73, NorthBoundingCoordinate: 21 }],
               },
             },
@@ -86,6 +97,7 @@ describe("NASA CMR metadata adapter", () => {
 
     const result = await searchNISARGranules({
       collectionConceptId: "C12345-ASF",
+      collectionShortName: "NISAR_L2_GCOV_PROVISIONAL_V1",
       bounds: { west: 70, south: 18, east: 74, north: 22 },
       startDate: "2026-09-01",
       endDate: "2026-09-30",
