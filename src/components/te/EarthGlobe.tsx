@@ -384,7 +384,7 @@ export default function EarthGlobe() {
       }
     }
     for (const granule of nisarGranules) {
-      if (!layers.has("nisar-coverage") || !granule.bounds) continue;
+      if (!layers.has("nisar-coverage") || !layers.has(`prod-${granule.productCode}`) || !granule.bounds) continue;
       const day = (granule.startDate || "").slice(0, 10);
       if (day && (day < time.start || day > time.end || day > time.current)) continue;
       const footprint = granule.footprint && granule.footprint.length >= 3
