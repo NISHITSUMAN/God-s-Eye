@@ -178,7 +178,8 @@ export const useApp = create<AppState>((set) => ({
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const todayKey = dateKey(today);
-    const endDate = snapshot.time.end > todayKey ? todayKey : snapshot.time.end;
+    const requestedEnd = snapshot.time.current < snapshot.time.end ? snapshot.time.current : snapshot.time.end;
+    const endDate = requestedEnd > todayKey ? todayKey : requestedEnd;
     const startDate = snapshot.time.start > endDate ? endDate : snapshot.time.start;
     const aoiBounds = snapshot.aoi?.bounds;
     const bounds = aoiBounds && aoiBounds.length === 4 && aoiBounds.every(Number.isFinite)
