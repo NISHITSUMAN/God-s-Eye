@@ -136,3 +136,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .metadata-grid dd { margin-top: 4px; font-size: 13px; overflow-wrap: anywhere; }
 @media (max-width: 1100px) { .desktop-context-panel { display: none; } .mobile-panel-controls { display: flex; gap: 6px; position: absolute; right: 16px; top: 110px; z-index: 23; } .mobile-earth-panel { display: block; position: absolute; right: 16px; top: 154px; bottom: 210px; z-index: 24; overflow-y: auto; } }
 @media (max-width: 760px) { .desktop-layer-panel { display: none; } .earth-mode { top: 64px; left: 8px; } .earth-mode button { padding: 0 7px; font-size: 9px; } .significance-control { top: 106px; right: 8px; min-width: 176px; } .first-use { top: 156px; left: 12px; transform: none; width: 208px; } .mobile-panel-controls { top: 150px; right: 8px; } .mobile-earth-panel { top: 195px; right: 8px; bottom: 220px; } .sample-indicator { bottom: 206px; width: 90%; font-size: 8px; } .earth-attribution { bottom: 221px; font-size: 7px; } .metadata-grid { grid-template-columns: 1fr; } }
+
+
+/* Embedded maps have less vertical room than the full-screen Explore view. */
+.earth-renderer-compact .earth-attribution {
+  bottom: 8px;
+  left: 8px;
+  transform: none;
+  max-width: calc(100% - 16px);
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  text-align: left;
+  white-space: normal;
+  line-height: 1.4;
+}
+.earth-renderer-compact .maplibregl-ctrl-attrib {
+  max-width: min(88%, 420px);
+  font-size: 9px;
+}
