@@ -100,6 +100,7 @@ export const DATASETS = [
   { id: "DEM", group: "SUPPORTING", name: "Elevation and slope", availability: "SAMPLE CONTEXT", description: "Terrain context for interpretation." },
   { id: "USGS-EQ", group: "SUPPORTING", name: "USGS Earthquake Catalog", availability: "LIVE + HISTORICAL CONTEXT", description: "Public USGS catalog for magnitude 5+ earthquakes across a two-year archive. Context only; not a NISAR product." },
   { id: "NASA-EONET", group: "SUPPORTING", name: "NASA EONET Event Archive", availability: "LIVE + HISTORICAL CONTEXT", description: "Public open and closed wildfires, floods, landslides and volcanic events across a two-year archive. Context only; not a NISAR product." },
+] as const;
 
 export interface EarthDataProvider {
   provenance: Provenance;
