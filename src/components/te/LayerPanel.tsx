@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Eye, EyeOff, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, SlidersHorizontal, PanelLeftClose, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 import { PHENOMENA } from "@/lib/mock-data";
@@ -49,7 +49,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   );
 }
 
-export function LayerPanel() {
+export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
   const mode = useApp((s) => s.mode);
   const setMode = useApp((s) => s.setMode);
   const advanced = useApp((s) => s.advanced);
@@ -66,8 +66,11 @@ export function LayerPanel() {
   }, [liveEnabled, liveStatus, refreshLiveData]);
   return (
     <div className="glass flex max-h-full w-[244px] flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 pt-3">
+      <div className="flex items-center justify-between gap-2 px-3 pt-3">
         <span className="font-mono text-[11px] tracking-[0.2em]">LAYERS</span>
+        {onCollapse && <button type="button" onClick={onCollapse} className="rounded p-1 text-subtle hover:bg-elevated hover:text-foreground" aria-label="Collapse layers panel" title="Collapse layers panel">
+          <PanelLeftClose className="size-4" />
+        </button>}
       </div>
       <div className="m-3 grid grid-cols-2 rounded-md border border-border p-0.5 font-mono text-[10px] tracking-[0.15em]">
         {(["science", "intelligence"] as const).map((m) => (
