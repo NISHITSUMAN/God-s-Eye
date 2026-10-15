@@ -29,5 +29,6 @@ jobs:
         run: bun run test
       - name: Run lint
         run: bun run lint
-      - name: Build production app
-        run: bun run build
+      - name: Build the Vercel deployment output
+        # CI must use the same Nitro target as Vercel, not the wrapper's Cloudflare default.
+        run: VERCEL=1 bun run build
