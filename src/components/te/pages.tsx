@@ -306,11 +306,18 @@ export function SettingsBody() {
 export function AboutBody() {
   return (
     <Panel className="max-w-2xl p-6 text-[14px] leading-relaxed text-muted-foreground">
-      <p>Third Eye is an Earth-observation exploration prototype with a 3D globe, 2D map, timeline, area-of-interest workflow, scientific catalog views, and an interface command simulator.</p>
-      <p className="mt-3">Optional live context feeds can display source-reported earthquakes from USGS and open natural events from NASA EONET. They are separate from the illustrative NISAR-style science overlays.</p>
+      <p>Third Eye combines a 3D globe, 2D map, historical timeline, area-of-interest tools, data discovery, and an interactive command interface.</p>
+      <p className="mt-3">The app queries NASA's Common Metadata Repository (CMR) for real NISAR product records, collection metadata, acquisition times, spatial footprints, and browse previews where a provider supplies them. It also loads attributed public context records from the USGS earthquake catalog and NASA EONET.</p>
       <div className="mt-4 rounded-md border border-border bg-background/40 p-4">
-        <div className="label-xs text-amber">SCIENTIFIC LIMITATIONS</div>
-        <p className="mt-2 text-[13px]">This build does not ingest, process, or interpret real NISAR radar measurements. Sample events, observation metadata, geometries, and analysis outputs are demonstrative. The command interface simulates actions; it is not a connected AI assistant or hazard-prediction system.</p>
+        <div className="label-xs text-amber">WHAT IS REAL — AND WHAT IS NOT</div>
+        <p className="mt-2 text-[13px]">A CMR acquisition record and its footprint are real catalogue information. A browse image is only a preview; it is not a processed scientific raster or a hazard detection. This frontend does not yet download and process full-resolution NISAR SAR rasters, make interferograms, or verify flood, fire, landslide, or deformation detections. Those steps require a separate, authenticated data and processing pipeline.</p>
+        <p className="mt-3 text-[13px]">Items marked SAMPLE — including candidate events, demo geometries, scores, and sample analysis outputs — are illustrative and are not derived from the live NISAR acquisitions. The command bar is a deterministic command parser, not a connected large language model or a hazard-prediction service.</p>
+        <p className="mt-3 text-[13px]">Some full-resolution downloads require a NASA Earthdata Login. Provisional NISAR products may also carry validation limitations.</p>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs">
+          <a className="text-primary hover:underline" href="https://nisar-docs.asf.alaska.edu/availability-overview/" target="_blank" rel="noopener noreferrer">NISAR data availability ↗</a>
+          <a className="text-primary hover:underline" href="https://nisar-docs.asf.alaska.edu/access-overview/" target="_blank" rel="noopener noreferrer">NISAR data access ↗</a>
+          <a className="text-primary hover:underline" href="https://surveyofindia.gov.in/pages/political-map-of-india" target="_blank" rel="noopener noreferrer">Survey of India political map reference ↗</a>
+        </div>
       </div>
       <Link to="/" className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-[12px] font-medium text-primary-foreground">Open Explore</Link>
     </Panel>
