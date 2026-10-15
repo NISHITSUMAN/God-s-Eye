@@ -29,7 +29,7 @@ export function ObservationDetail({id}:{id:string}) {
           {nisar.browseUrl
             ? <a href={nisar.browseUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block overflow-hidden rounded-lg border border-border bg-background/40"><img src={nisar.browseUrl} alt={`NISAR ${nisar.productCode} browse image`} loading="lazy" className="max-h-[420px] w-full object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }}/><div className="px-3 py-2 text-[11px] text-primary">OPEN ORIGINAL BROWSE IMAGE ↗</div></a>
             : <div className="mt-3 rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground">A browse image was not included in this catalog response. Use the Earthdata record to inspect all available assets.</div>}
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A browse image is a quicklook for discovery and visual context, not the full-resolution data or a derived hazard/detection product.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A browse image is a quicklook for discovery and visual context, not the full-resolution data or a derived hazard/detection product. If the source did not provide an exact polygon, the map uses a clearly marked approximate catalog bounding rectangle.</p>
         </div>
         <div>
           <div className="label-xs text-primary">VERIFIED CATALOG METADATA</div>
@@ -39,7 +39,8 @@ export function ObservationDetail({id}:{id:string}) {
             ["Acquisition start", nisar.startDate ?? "Not reported"],
             ["Acquisition end", nisar.endDate ?? "Not reported"],
             ["Provider", nisar.producer || "NASA CMR / ASF"],
-            ["Footprint bounds", bounds],
+            ["Spatial extent", nisar.footprint && nisar.footprint.length >= 3 ? "Source granule polygon" : "Approximate CMR bounding rectangle"],
+            ["Extent bounds", bounds],
             ["Granule concept ID", nisar.conceptId],
             ["Data link", nisar.dataUrl ? "Available in CMR metadata" : "No direct URL in this response"],
           ]}/></div>
