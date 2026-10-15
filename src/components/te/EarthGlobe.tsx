@@ -86,25 +86,31 @@ export default function EarthGlobe() {
     const token = ION_TOKEN?.trim();
     if (token) Ion.defaultAccessToken = token;
 
-    const viewer = new Viewer(container.current, {
-      baseLayer: false,
-      terrainProvider: new EllipsoidTerrainProvider(),
-      animation: false,
-      timeline: false,
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      fullscreenButton: false,
-      infoBox: false,
-      selectionIndicator: false,
-      // Continuous rendering is more reliable on mobile WebGL implementations while imagery
-      // and terrain are arriving. The explicit fallback chain prevents a permanent black canvas.
-      requestRenderMode: false,
-      resolutionScale: window.innerWidth < 760 ? 0.8 : 1,
-      maximumRenderTimeChange: Infinity,
-    });
+    let viewer: Viewer;
+    try {
+      viewer = new Viewer(container.current, {
+        baseLayer: false,
+        terrainProvider: new EllipsoidTerrainProvider(),
+        animation: false,
+        timeline: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        fullscreenButton: false,
+        infoBox: false,
+        selectionIndicator: false,
+        // Normal rendering plus resize observation avoids stale first frames on mobile WebGL.
+        requestRenderMode: false,
+        resolutionScale: window.innerWidth < 760 ? 0.8 : 1,
+        maximumRenderTimeChange: Infinity,
+      });
+    } catch (initializationError) {
+      console.error("Cesium could not initialize WebGL.", initializationError);
+      setError("The 3D Earth could not start in this browser. Try the 2D map or another browser with WebGL enabled.");
+      return;
+    }
     ref.current = viewer;
 
     const removeActiveLayer = () => {
@@ -361,7 +367,7 @@ export default function EarthGlobe() {
     {error && <div className="earth-status earth-status-action" role="status">
       <p>{error}</p>
       <div className="mt-3 flex flex-wrap justify-center gap-2">
-        <button type="button" className="rounded border border-primary/50 px-3 py-1.5 text-[11px] text-primary hover:bg-primary/10" onClick={() => retryImageryRef.current?.()}>RETRY IMAGERY</button>
+        <button type="button" className="rounded border border-primary/50 px-3 py-1.5 text-[11px] text-primary hover:bg-primary/10" onClick={() => retryImageryRef.current ? retryImageryRef.current() : window.location.reload()}>RETRY IMAGERY</button>
         <button type="button" className="rounded border border-border px-3 py-1.5 text-[11px] hover:bg-elevated" onClick={() => useApp.getState().setEarthMode("2d")}>OPEN 2D MAP</button>
       </div>
     </div>}
