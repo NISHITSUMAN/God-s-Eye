@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, RefreshCw } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -102,17 +102,109 @@ export function DataBody() {
 
 export const LearnBody = ScienceLearn;
 
+type DisplaySettings = {
+  units: "Metric" | "Imperial";
+  coords: "Decimal degrees" | "DMS";
+};
+
+const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  units: "Metric",
+  coords: "Decimal degrees",
+};
+
+function formatDMS(value: number, positive: string, negative: string) {
+  const absolute = Math.abs(value);
+  const degrees = Math.floor(absolute);
+  const minuteValue = (absolute - degrees) * 60;
+  const minutes = Math.floor(minuteValue);
+  const seconds = ((minuteValue - minutes) * 60).toFixed(1);
+  return `${degrees}° ${minutes}' ${seconds}" ${value >= 0 ? positive : negative}`;
+}
+
 export function SettingsBody() {
-  const [s, set] = useState({ motion: true, units: "Metric", coords: "Decimal degrees", intro: true });
+  const [settings, setSettings] = useState<DisplaySettings>(DEFAULT_DISPLAY_SETTINGS);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("te-display-settings");
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<DisplaySettings>;
+        setSettings({
+          units: parsed.units === "Imperial" ? "Imperial" : "Metric",
+          coords: parsed.coords === "DMS" ? "DMS" : "Decimal degrees",
+        });
+      }
+    } catch {
+      // Invalid or blocked local storage should never stop the settings screen.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("te-display-settings", JSON.stringify(settings));
+    } catch {
+      // The controls remain usable in private browsing when storage is unavailable.
+    }
+  }, [settings]);
+
+  const setOption = (key: "units" | "coords", value: string) => {
+    setSettings((current) => key === "units"
+      ? { ...current, units: value as DisplaySettings["units"] }
+      : { ...current, coords: value as DisplaySettings["coords"] });
+  };
+  const example = settings.coords === "DMS"
+    ? `${formatDMS(19.076, "N", "S")}  ${formatDMS(72.8777, "E", "W")}`
+    : formatCoord(19.076, 72.8777);
+
+  const preferences = [
+    { label: "Units", key: "units" as const, options: ["Metric", "Imperial"] as const },
+    { label: "Coordinates", key: "coords" as const, options: ["Decimal degrees", "DMS"] as const },
+  ];
+
   return (
     <Panel className="divide-y divide-border">
-      {[["Units", "units", ["Metric", "Imperial"]], ["Coordinates", "coords", ["Decimal degrees", "DMS"]]].map(([l, k, o]) => (
-        <div key={k as string} className="flex items-center justify-between p-4 text-[13px]"><span>{l as string}</span>
-          <div className="flex gap-1">{(o as string[]).map((x) => <button key={x} onClick={() => set({ ...s, [k as string]: x })} className={cn("rounded-md border px-3 py-1 text-[12px]", (s as any)[k as string] === x ? "border-primary text-primary" : "border-border text-muted-foreground")}>{x}</button>)}</div>
+      {preferences.map(({ label, key, options }) => (
+        <div key={key} className="flex flex-wrap items-center justify-between gap-3 p-4 text-[13px]">
+          <span>{label}</span>
+          <div className="flex gap-1">
+            {options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={settings[key] === option}
+                onClick={() => setOption(key, option)}
+                className={cn(
+                  "rounded-md border px-3 py-1 text-[12px] transition-colors",
+                  settings[key] === option ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-elevated",
+                )}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       ))}
-      <div className="flex items-center justify-between p-4 text-[13px]"><span>Replay intro animation</span><button onClick={() => sessionStorage.removeItem("te-intro")} className="rounded-md border border-border px-3 py-1 text-[12px]">Reset</button></div>
-      <div className="p-4 font-mono text-[11px] text-subtle">Example coordinate: {formatCoord(19.076, 72.8777)}</div>
+      <div className="flex items-center justify-between gap-3 p-4 text-[13px]">
+        <div>
+          <div>Replay intro animation</div>
+          <p className="mt-1 text-[11px] text-muted-foreground">Show the Third Eye title screen again.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.removeItem("te-intro");
+            window.location.reload();
+          }}
+          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-[12px] transition-colors hover:bg-elevated"
+        >
+          Replay
+        </button>
+      </div>
+      <div className="space-y-1 p-4">
+        <div className="label-xs">COORDINATE PREVIEW</div>
+        <div className="font-mono text-[11px] text-muted-foreground">{example}</div>
+        <p className="text-[10px] text-subtle">Units: {settings.units}. Preferences are saved on this device.</p>
+      </div>
     </Panel>
   );
 }
