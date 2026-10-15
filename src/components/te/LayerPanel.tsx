@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Eye, EyeOff, SlidersHorizontal, PanelLeftClose, X } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, SlidersHorizontal, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 import { PHENOMENA } from "@/lib/mock-data";
