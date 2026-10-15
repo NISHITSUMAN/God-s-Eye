@@ -95,7 +95,7 @@ export function LayerPanel() {
             <div className="flex items-center justify-between gap-2">
               <span className="label-xs">FEED STATUS</span>
               <span className={cn("font-mono text-[9px]", liveStatus === "ready" ? "text-ok" : liveStatus === "partial" || liveStatus === "error" ? "text-amber" : "text-subtle")}>
-                {liveStatus === "idle" ? "NOT LOADED" : liveStatus === "loading" ? "FETCHING" : liveStatus === "ready" ? "LIVE READY" : liveStatus === "partial" ? "PARTIAL" : "UNAVAILABLE"}
+                {liveStatus === "idle" ? "NOT LOADED" : liveStatus === "loading" ? "FETCHING" : liveStatus === "ready" ? "FEEDS LOADED" : liveStatus === "partial" ? "PARTIAL" : "UNAVAILABLE"}
               </span>
             </div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
