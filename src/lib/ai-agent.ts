@@ -13,7 +13,7 @@ const KEYWORDS: Record<string, Phenomenon> = {
   fire: "fire", fires: "fire", wildfire: "fire", wildfires: "fire", flood: "flood", floods: "flood", flooding: "flood", forest: "forest",
   agriculture: "agriculture", crop: "agriculture", crops: "agriculture", soil: "soil", moisture: "soil", landslide: "landslide",
   landslides: "landslide", volcano: "volcano", volcanoes: "volcano", earthquake: "earthquake", earthquakes: "earthquake", glacier: "glacier", glaciers: "glacier", ice: "glacier",
-  subsidence: "subsidence", deformation: "subsidence", coastal: "coastal", coast: "coastal", urban: "urban,
+  subsidence: "subsidence", deformation: "subsidence", coastal: "coastal", coast: "coastal", urban: "urban",
 };
 
 async function runSteps(title: string, labels: string[]) {
@@ -146,10 +146,18 @@ export async function runCommand(raw: string) {
     return reply(`The analysis workspace supports area selection and a sample workflow. Available analysis methods include: ${ANALYSIS_CATALOG.slice(0, 8).join(", ")}. Results remain sample-only until real processing is connected.`, [{ label: "Open analysis workspace", run: "navigate:/analyze" }]);
   }
 
-  if (/\b(open|go to|show)\s+(the\\s+)?(observations|events|datasets|data catalog|discover|methodology|learn)\b/.test(q)) {
+  if (/\b(open|go to|show)\s+(the\s+)?(observations|events|datasets|data catalog|discover|methodology|learn)\b/.test(q)) {
     const term = q.match(/\b(observations|events|datasets|data catalog|discover|methodology|learn)\b/)?.[1];
-    const route = term === "observations" ? "/observations" : term === "events" ? "/events" : term === "datasets" || term === "data catalog" ? "/data" : `/${term}`;
-    return reply(`Opening the ${term} section.`, [{ label: "Open section", run: `navigate:${route}` }]);
+    const route = term === "observations"
+      ? "/observations"
+      : term === "events"
+        ? "/events"
+        : term === "datasets"
+          ? "/datasets"
+          : term === "data catalog"
+            ? "/data"
+            : \`/\${term}\`;
+    return reply(\`Opening the \${term} section.\`, [{ label: "Open section", run: \`navigate:\${route}\` }]);
   }
 
   if (/\b(live data|live feeds?|usgs|eonet|public feeds?)\b/.test(q)) {
