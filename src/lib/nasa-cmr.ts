@@ -368,3 +368,72 @@ export async function searchNISARGranules(options: {
     hits: typeof data.hits === "number" && Number.isFinite(data.hits) ? data.hits : granules.length,
   };
 }
+
+export interface NISARCoverageResult {
+  collections: NISARCollection[];
+  granules: NISARGranule[];
+  granuleHits: number;
+  warnings: string[];
+}
+
+/**
+ * Discover available, real NISAR browseable products for the selected area and time.
+ * It returns catalog metadata and browse links; it does not download or process HDF5 rasters.
+ */
+export async function searchNISARCoverage(options: {
+  bounds?: CMRBounds | null;
+  startDate: string;
+  endDate: string;
+}): Promise<NISARCoverageResult> {
+  const catalog = await searchNISARCollections(100);
+  const productCodes = ["GCOV", "GSLC", "GUNW", "SME2"];
+  const selected: NISARCollection[] = [];
+  const used = new Set<string>();
+
+  for (const code of productCodes) {
+    const candidates = catalog.collections.filter(collection =>
+      new RegExp(`NISAR_(?:L[123]|L0B)_.*${code}_(?:PROVISIONAL|BETA)_V\\d+`, "i").test(collection.shortName),
+    );
+    candidates.sort((a, b) => {
+      const provisional = (item: NISARCollection) => /PROVISIONAL/i.test(item.shortName) ? 1 : 0;
+      return provisional(b) - provisional(a) ||
+        (Date.parse(b.revisionDate || "") || 0) - (Date.parse(a.revisionDate || "") || 0);
+    });
+    const match = candidates[0];
+    if (match && !used.has(match.conceptId)) {
+      used.add(match.conceptId);
+      selected.push(match);
+    }
+  }
+
+  if (!selected.length) {
+    throw new Error("NASA CMR returned no matching NISAR GCOV, GSLC, GUNW or SME2 product collections.");
+  }
+
+  const results = await Promise.allSettled(selected.map(collection =>
+    searchNISARGranules({
+      collectionConceptId: collection.conceptId,
+      collectionShortName: collection.shortName,
+      bounds: options.bounds,
+      startDate: options.startDate,
+      endDate: options.endDate,
+      pageSize: 12,
+    }),
+  ));
+  const granules: NISARGranule[] = [];
+  const warnings: string[] = [];
+  let granuleHits = 0;
+  results.forEach((result, index) => {
+    const collection = selected[index];
+    if (!collection) return;
+    if (result.status === "fulfilled") {
+      granuleHits += result.value.hits;
+      granules.push(...result.value.granules);
+    } else {
+      warnings.push(`${collection.shortName}: ${result.reason instanceof Error ? result.reason.message : "granule search failed"}`);
+    }
+  });
+
+  granules.sort((a, b) => (Date.parse(b.startDate || "") || 0) - (Date.parse(a.startDate || "") || 0));
+  return { collections: selected, granules, granuleHits, warnings };
+}
