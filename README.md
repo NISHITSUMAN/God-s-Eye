@@ -1,15 +1,12 @@
 # Third Eye
 
-Third Eye is an Earth-observation exploration prototype. It combines an interactive 3D Earth (CesiumJS/Resium), a 2D map (MapLibre), sample environmental events and observations, timeline controls, area-of-interest analysis flows, and a frontend command simulator.
+Third Eye is an Earth-observation exploration prototype. It combines an interactive 3D Earth (CesiumJS), a 2D map (MapLibre), sample environmental events and observations, timeline controls, area-of-interest tools, scientific detail pages, and a frontend command simulator.
 
-> **Data honesty:** event points, polygons, observation metadata, measurements, analysis results, and tracks in this repository are illustrative sample data. They are not live NASA/NISAR measurements. The basemap is separate from scientific datasets.
-
-## Requirements
-
-- Node.js compatible with the versions supported by Vite 8 and the project dependencies.
-- Bun is recommended because the repository includes `bun.lock`. npm can also be used with `package.json`.
+> **Data honesty:** event points, polygons, tracks, observation metadata, metrics and analysis results in this repository are illustrative sample data. They are not live NASA/NISAR measurements. Basemap imagery is a separate geographic context layer.
 
 ## Run locally
+
+Requirements: a current Node.js version compatible with Vite 8, or Bun.
 
 ```sh
 git clone https://github.com/NISHITSUMAN/God-s-Eye.git
@@ -35,14 +32,15 @@ bun run build
 
 ## Earth imagery and terrain
 
-The 3D globe no longer relies on the bundled low-resolution Natural Earth II texture as its only imagery source.
+The 3D globe uses a multi-level imagery provider instead of relying solely on the low-resolution bundled Natural Earth II image.
 
-- Default fallback: OpenStreetMap standard raster tiles. This is a street/map basemap, not satellite imagery. Respect the provider's usage policy and keep attribution visible.
-- Recommended higher-detail option: configure a suitable multi-resolution XYZ imagery provider using `VITE_EARTH_IMAGERY_URL` and `VITE_EARTH_IMAGERY_ATTRIBUTION`. Use a provider whose terms allow your use and which supports the desired zoom levels. Use only credentials intended for browser use.
-- Optional Cesium ion imagery: set `VITE_CESIUM_ION_TOKEN`. Optionally set `VITE_CESIUM_ION_IMAGERY_ASSET_ID` to the ID of an imagery asset available to your account. Verify the asset's license, attribution and quota.
-- Optional terrain: set `VITE_CESIUM_TERRAIN=true` with a valid Cesium ion token and terrain access. If it fails, the globe stays on ellipsoid terrain.
+- **Default:** Esri World Imagery, a tiled satellite/aerial basemap, with provider attribution enabled in Cesium's on-screen credit area. Imagery sharpness varies by place and available zoom level; it is not a guarantee of street-level detail.
+- **Optional custom imagery:** set `VITE_EARTH_IMAGERY_URL` to a tile URL template with `{z}`, `{x}`, and `{y}`, plus `VITE_EARTH_IMAGERY_ATTRIBUTION`. Use only a provider whose licence, terms and usage limits permit this application.
+- **Optional Cesium ion imagery:** set `VITE_CESIUM_ION_TOKEN` and, if needed, `VITE_CESIUM_ION_IMAGERY_ASSET_ID`. The default asset ID is `2`; check that the asset is available to your account and that its terms/attribution/quota are appropriate.
+- **Optional 3D terrain:** set `VITE_CESIUM_TERRAIN=true` with a valid ion token and terrain access. If the terrain request fails, the globe retains ellipsoid terrain.
+- If the preferred tile provider reports repeated tile errors, the globe falls back to Esri imagery and then the bundled low-resolution Natural Earth II image.
 
-Example local `.env.local` (do not commit real secrets):
+Example local `.env.local` (leave token empty unless you have configured ion access; do not commit real secrets):
 
 ```dotenv
 VITE_CESIUM_ION_TOKEN=
@@ -52,12 +50,12 @@ VITE_EARTH_IMAGERY_URL=
 VITE_EARTH_IMAGERY_ATTRIBUTION=
 ```
 
-The `VITE_` values are exposed to the browser bundle. Only put public/client-scoped tokens here, restrict them with provider-side URL/domain settings, and never put server secrets in client environment variables.
+Variables prefixed with `VITE_` are exposed in the browser bundle. Only use client-scoped tokens, restrict them by domain where the provider supports it, and never put server secrets in client environment variables.
 
 ## Current limitations
 
-- Scientific event and observation layers are sample-only.
-- The command/AI experience is a frontend simulator; it does not call a real LLM or tool-calling backend.
-- Analysis results are sample placeholders, not processed NISAR rasters or scientific estimates.
-- A sharper basemap does not supply NISAR data. Real products need a separate data ingestion, processing, provenance and visualization pipeline.
-- Browser/WebGL testing and real provider credentials are needed to verify the exact imagery quality available in your environment.
+- All scientific event and observation layers remain sample-only.
+- The command/AI experience is a frontend simulator; it does not use a real LLM or live tools.
+- Analysis routes document a sample workflow; they do not preprocess or interpret real radar rasters.
+- A detailed satellite basemap does not provide NISAR measurements. Real products need a separate ingestion, processing, validation, provenance and visualization pipeline.
+- Run the test, lint and production build commands locally, then verify imagery loads in a real browser with WebGL and the chosen provider's terms/credentials.
