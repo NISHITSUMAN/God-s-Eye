@@ -66,6 +66,9 @@ describe("NASA CMR metadata adapter", () => {
     expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toBe(
       "/search/concepts/G12345-ASF.umm_json",
     );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: { Accept: "application/vnd.nasa.cmr.umm+json, application/json" },
+    });
   });
 
   it("normalizes public NISAR collection metadata and ignores unrelated records", async () => {
