@@ -19,7 +19,7 @@ export function Timeline() {
       .map((event) => ({ id: event.id, title: event.title, date: event.date.slice(0, 10), label: event.type, source: event.source })),
   ].sort((a, b) => a.date.localeCompare(b.date));
   useEffect(() => { if (!playing) return; const timer = setInterval(() => { const state = useApp.getState(); const next = Date.parse(state.time.current) + 86400000 * 7; state.setCurrentDate(new Date(next > Date.parse(state.time.end) ? Date.parse(state.time.start) : next).toISOString().slice(0,10)); }, 800 / speed); return () => clearInterval(timer); }, [playing, speed]);
-  return <div className="glass w-full px-3 py-2">
+  return <div className="earth-timeline glass w-full px-3 py-2">
     <div className="flex flex-wrap items-center gap-2">
       <Button variant="ghost" size="icon" aria-label={playing ? "Pause timeline" : "Play timeline"} onClick={() => setPlaying(!playing)}>{playing ? <Pause /> : <Play />}</Button>
       <Button variant="ghost" size="sm" aria-label="Playback speed" onClick={() => useApp.getState().setPlaybackSpeed(speed === 4 ? 1 : speed === 1 ? 2 : 4)}>{speed}×</Button>
@@ -29,7 +29,7 @@ export function Timeline() {
       <span className="font-mono text-[10px] text-primary">{time.current}</span>
       <Button variant={comparison ? "secondary" : "ghost"} size="icon" title="Before / after comparison" aria-label="Before after comparison" aria-pressed={Boolean(comparison)} onClick={() => useApp.getState().setInvestigation({ comparison: comparison ? null : "before-after" })}><Columns2 /></Button>
     </div>
-    <div className="flex gap-1 overflow-x-auto border-t border-border pt-1">{entries.map((entry) => <Button key={entry.id} variant="ghost" className={`h-6 shrink-0 px-2 font-mono text-[9px] ${entry.source === "SAMPLE" ? "text-muted-foreground" : "text-ok"}`} title={`${entry.title} · ${entry.date} · ${entry.source}`} onClick={() => useApp.getState().select(entry.id)}>{entry.date.slice(5)} · {entry.label} · {entry.source}</Button>)}
+    <div className="timeline-entries flex gap-1 overflow-x-auto border-t border-border pt-1">{entries.map((entry) => <Button key={entry.id} variant="ghost" className={`h-6 shrink-0 px-2 font-mono text-[9px] ${entry.source === "SAMPLE" ? "text-muted-foreground" : "text-ok"}`} title={`${entry.title} · ${entry.date} · ${entry.source}`} onClick={() => useApp.getState().select(entry.id)}>{entry.date.slice(5)} · {entry.label} · {entry.source}</Button>)}
       {entries.length === 0 && <span className="px-2 py-2 text-[10px] text-subtle">No events in this time range. Load a live feed or widen the range.</span>}</div>
   </div>;
 }
