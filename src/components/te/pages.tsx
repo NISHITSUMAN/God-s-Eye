@@ -148,8 +148,8 @@ export function DataBody() {
             <div className="label-xs text-ok">PUBLIC DATA CONNECTIONS</div>
             <h2 className="mt-2 text-lg">Live event feeds</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Fetch source-reported earthquakes from USGS and open environmental events from NASA EONET.
-              These provide live geographic context only. They are not radar measurements, hazard predictions, or NISAR products.
+              Fetch source-reported M5+ earthquakes from the USGS two-year catalog and open/closed environmental events from NASA EONET.
+              These provide historical public context only. They are not radar measurements, hazard predictions, or NISAR products.
             </p>
           </div>
           <button onClick={() => void refresh()} disabled={status === "loading"} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary/40 px-3 text-xs text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60">
@@ -159,13 +159,13 @@ export function DataBody() {
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-border bg-background/40 p-3">
-            <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">USGS Earthquake Feed</span><span className="font-mono text-[9px] text-ok">PUBLIC · 24 HOUR</span></div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Earthquake locations, reported magnitudes, depths, timestamps, and source records.</p>
+            <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">USGS Earthquake Catalog</span><span className="font-mono text-[9px] text-ok">PUBLIC · M5+ / 2 YEARS</span></div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Real source catalog entries including earthquake locations, magnitudes, depths, timestamps, and source records; this query is limited to M5+ events over the previous two years.</p>
             <a className="mt-2 inline-block text-[11px] text-primary hover:underline" href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php" target="_blank" rel="noopener noreferrer">Feed documentation ↗</a>
           </div>
           <div className="rounded-md border border-border bg-background/40 p-3">
-            <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">NASA EONET</span><span className="font-mono text-[9px] text-ok">PUBLIC · OPEN EVENTS</span></div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Open wildfire, flood, landslide, and volcano events where EONET provides a usable geometry.</p>
+            <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">NASA EONET</span><span className="font-mono text-[9px] text-ok">PUBLIC · 2-YEAR ARCHIVE</span></div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Open and closed wildfire, flood, landslide, and volcano records where EONET provides usable dated geometry.</p>
             <a className="mt-2 inline-block text-[11px] text-primary hover:underline" href="https://eonet.gsfc.nasa.gov/docs/v3" target="_blank" rel="noopener noreferrer">API documentation ↗</a>
           </div>
         </div>
