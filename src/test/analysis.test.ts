@@ -41,6 +41,21 @@ describe("AOI construction", () => {
     expect(() => validateGeometry({ type: "LineString", coordinates: points })).toThrow(/10,000 vertices/i);
   });
 
+  it("rejects malformed polygon rings and underspecified lines", () => {
+    expect(() => validateGeometry({
+      type: "Polygon",
+      coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1]]],
+    })).toThrow(/starting point/i);
+    expect(() => validateGeometry({
+      type: "LineString",
+      coordinates: [[0, 0]],
+    })).toThrow(/at least two/i);
+  });
+
+  it("rejects an invalid AOI center before creating a circle", () => {
+    expect(() => circleAOI([181, 20], 5)).toThrow(/center/i);
+  });
+
   it("rejects an AOI with non-finite bounds", () => {
     expect(() => makeAOI({
       type: "Feature",
