@@ -50,6 +50,7 @@ interface EONETEvent {
   id?: string;
   title?: string;
   description?: string | null;
+  closed?: string | null;
   link?: string;
   categories?: Array<{ id?: string; title?: string }>;
   sources?: Array<{ id?: string; url?: string }>;
@@ -93,10 +94,26 @@ function safeSourceUrl(value: string | null | undefined, fallback: string, kind:
   }
 }
 
-/** Fetch USGS's public GeoJSON feed of earthquakes reported over the last day. */
+function historicalStartDate() {
+  const start = new Date();
+  start.setUTCFullYear(start.getUTCFullYear() - 2);
+  return start;
+}
+
+/** Fetch the USGS public catalog for two years of M5+ earthquakes, not just today's feed. */
 export async function fetchUSGSEarthquakes(): Promise<LiveEarthEvent[]> {
+  const start = historicalStartDate();
+  const end = new Date();
+  const query = new URLSearchParams({
+    format: "geojson",
+    starttime: start.toISOString(),
+    endtime: end.toISOString(),
+    minmagnitude: "5.0",
+    limit: "5000",
+    orderby: "time",
+  });
   const data = await fetchJSON<{ features?: USGSFeature[] }>(
-    "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    `https://earthquake.usgs.gov/fdsnws/event/1/query?${query.toString()}`,
   );
   if (!Array.isArray(data.features)) throw new Error("USGS returned an unexpected GeoJSON response.");
 
@@ -120,7 +137,7 @@ export async function fetchUSGSEarthquakes(): Promise<LiveEarthEvent[]> {
       id: `live:usgs:${sourceId}`,
       sourceId,
       source: "USGS",
-      sourceLabel: "USGS Earthquake Feed",
+      sourceLabel: "USGS Earthquake Catalog (M5+)",
       sourceUrl: safeSourceUrl(p.url || p.detail, "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php", "USGS"),
       layerId: "live-usgs",
       type: "earthquake",
@@ -164,10 +181,13 @@ function meanCoordinate(value: unknown): [number, number] | null {
   return [sum[0] / positions.length, sum[1] / positions.length];
 }
 
-/** Fetch open NASA EONET natural events; unmapped categories are intentionally omitted. */
+/** Fetch open and closed NASA EONET events within the same two-year archive window. */
 export async function fetchNASAEONETEvents(): Promise<LiveEarthEvent[]> {
+  const start = historicalStartDate().toISOString().slice(0, 10);
+  const end = new Date().toISOString().slice(0, 10);
+  const query = new URLSearchParams({ status: "all", start, end, limit: "1000" });
   const data = await fetchJSON<{ events?: EONETEvent[] }>(
-    "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100",
+    `https://eonet.gsfc.nasa.gov/api/v3/events?${query.toString()}`,
   );
   if (!Array.isArray(data.events)) throw new Error("NASA EONET returned an unexpected response.");
 
@@ -202,9 +222,12 @@ export async function fetchNASAEONETEvents(): Promise<LiveEarthEvent[]> {
       lat,
       lng,
       date,
-      metric: "OPEN",
+      metric: event.closed ? "CLOSED" : "OPEN",
       metricLabel: category,
-      summary: event.description || `Open EONET event categorized as ${category}.`,
+      summary: [
+        event.description || `EONET event categorized as ${category}.`,
+        event.closed ? `Closed on ${event.closed.slice(0, 10)}.` : "Currently listed as open by NASA EONET.",
+      ].join(" "),
     }];
   });
 }
