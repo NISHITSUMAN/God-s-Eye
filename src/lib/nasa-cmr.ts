@@ -347,9 +347,7 @@ export async function searchNISARGranules(options: {
     const related = granuleRelatedUrls(umm);
     const productCode = (options.collectionShortName || granuleId).match(/GCOV|GSLC|GUNW|GOFF|RSLC|RIFG|ROFF|RUNW|SME2|CRSD|RRSD/i)?.[0]?.toUpperCase() || "NISAR";
     const title = textValue(umm.CollectionReference && recordOf(umm.CollectionReference)?.EntryTitle) || granuleId;
-    const s3BrowseFallback = options.collectionShortName
-      ? `https://sds-n-cumulus-prod-nisar-browse.s3.us-west-2.amazonaws.com/${encodeURIComponent(options.collectionShortName)}/${encodeURIComponent(granuleId)}/${encodeURIComponent(granuleId)}.png`
-      : null;
+    // Only expose browse images returned by NASA CMR; do not guess URL patterns.
     return [{
       id: `nisar:${conceptId}`,
       conceptId,
@@ -363,7 +361,7 @@ export async function searchNISARGranules(options: {
       producer: dataCenter,
       bounds: spatial.bounds,
       footprint: spatial.footprint,
-      browseUrl: related.browseUrl || s3BrowseFallback,
+      browseUrl: related.browseUrl,
       dataUrl: related.dataUrl,
       metadataUrl: `https://cmr.earthdata.nasa.gov/search/concepts/${encodeURIComponent(conceptId)}`,
       earthdataSearchUrl: `https://search.earthdata.nasa.gov/search?q=${encodeURIComponent(granuleId)}`,
