@@ -2,7 +2,7 @@
 
 Third Eye is an Earth-observation exploration prototype. It combines an interactive 3D Earth (CesiumJS), a 2D map (MapLibre), sample environmental events and observations, timeline controls, area-of-interest tools, scientific detail pages, and a frontend command simulator.
 
-> **Data honesty:** event points, polygons, tracks, observation metadata, metrics and analysis results in this repository are illustrative sample data. They are not live NASA/NISAR measurements. Basemap imagery is a separate geographic context layer.
+> **Data honesty:** the app now connects to official public source metadata for NASA's Common Metadata Repository (NISAR collections and granules), USGS earthquakes, and NASA EONET open natural events. Those connections return source catalog records, not processed radar measurements. The other event points, polygons, observation metadata, metrics, and analysis results remain illustrative sample data. Basemap imagery is a separate geographic context layer.
 
 ## Run locally
 
@@ -30,6 +30,13 @@ bun run lint
 bun run build
 ```
 
+## Connected public data sources
+
+- **NASA CMR / NISAR catalog:** the Data page can query current collection metadata and search granules by selected collection, time range, and (when present) the AOI bounding box. It links to official CMR metadata and Earthdata Search. It does not download or process the product files. Some data access workflows require an Earthdata Login.
+- **USGS earthquakes:** the Live Layers panel fetches the USGS public GeoJSON feed for earthquakes reported in the last 24 hours. Records retain magnitude, time, location, and source URLs where available.
+- **NASA EONET:** the Live Layers panel fetches open natural events, and maps supported wildfire, flood, landslide, and volcanic categories when a valid location is present.
+- Public-source records are displayed as **live context**, not as NISAR observations, predicted hazards, or Third Eye scientific detections. They can be unavailable if the source, network, or browser access fails. Refresh is manual; these are not continuous streaming feeds.
+
 ## Earth imagery and terrain
 
 The 3D globe uses a multi-level imagery provider instead of relying solely on the low-resolution bundled Natural Earth II image.
@@ -54,7 +61,7 @@ Variables prefixed with `VITE_` are exposed in the browser bundle. Only use clie
 
 ## Current limitations
 
-- All scientific event and observation layers remain sample-only.
+- The NASA CMR integration retrieves live catalog metadata, but NISAR raster products are not downloaded, rendered as scientific rasters, or processed in the current app. Other scientific event and observation layers remain sample-only.
 - The command/AI experience is a frontend simulator; it does not use a real LLM or live tools.
 - Analysis routes document a sample workflow; they do not preprocess or interpret real radar rasters.
 - A detailed satellite basemap does not provide NISAR measurements. Real products need a separate ingestion, processing, validation, provenance and visualization pipeline.
