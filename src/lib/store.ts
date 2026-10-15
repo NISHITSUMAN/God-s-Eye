@@ -84,7 +84,7 @@ export interface AppState {
 }
 
 export const DEFAULT_FILTER: EarthFilter = { types: null, region: null, significance: "all", confidence: "all", severity: "all", evidence: "all" };
-const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", current: "2026-09-30" };
+const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", current: "2026-10-15" };
 
 export const useApp = create<AppState>((set) => ({
   aoi: null,
@@ -135,7 +135,7 @@ export const useApp = create<AppState>((set) => ({
   view: { lat: 18, lng: 70, altitude: 2.4 },
   viewNonce: 0,
   time: INITIAL_TIME,
-  monthIndex: 8,
+  monthIndex: 9,
   playing: false,
   playbackSpeed: 1,
   filter: DEFAULT_FILTER,
