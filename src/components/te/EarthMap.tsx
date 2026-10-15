@@ -44,6 +44,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const activeBasemapRef = useRef(0);
+  const probeBasemapRef = useRef<((index: number) => void) | null>(null);
   const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
   const [mapError, setMapError] = useState("");
   const layers = useApp(s => s.layers);
@@ -179,18 +180,56 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       map.triggerRepaint();
     };
 
-    const onMapError = (event: unknown) => {
-      const detail = event as { sourceId?: string; error?: { message?: string } };
-      const sourceId = detail.sourceId;
-      const failedIndex = BASEMAPS.findIndex(basemap => `base-${basemap.id}` === sourceId);
-      if (failedIndex < 0 || failedIndex !== activeBasemapRef.current) return;
+    const probeBasemap = (index: number) => {
+      if (index >= BASEMAPS.length) {
+        setMapStatus("error");
+        setMapError("All free map tile sources failed to load. Check your connection and try again.");
+        return;
+      }
+      setActiveBasemap(index);
+      const tileTemplate = BASEMAPS[index].source.tiles[0];
+      if (!tileTemplate) {
+        probeBasemap(index + 1);
+        return;
+      }
 
-      const nextIndex = failedIndex + 1;
-      if (nextIndex < BASEMAPS.length) {
-        console.warn(`2D basemap ${BASEMAPS[failedIndex].label} failed; switching to ${BASEMAPS[nextIndex].label}.`, detail.error);
-        setActiveBasemap(nextIndex);
-      } else {
-        console.error("All 2D basemap providers failed.", detail.error);
+      // Probe a tiny world tile independently of MapLibre's render loop. This gives us
+      // a reliable fallback path even on MapLibre versions that omit sourceId on errors.
+      const image = new Image();
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled || activeBasemapRef.current !== index) return;
+        settled = true;
+        probeBasemap(index + 1);
+      }, 9000);
+      image.onload = () => {
+        if (settled || activeBasemapRef.current !== index) return;
+        settled = true;
+        window.clearTimeout(timer);
+        setMapStatus(index === 0 ? "ready" : "fallback");
+        setMapError("");
+      };
+      image.onerror = () => {
+        if (settled || activeBasemapRef.current !== index) return;
+        settled = true;
+        window.clearTimeout(timer);
+        console.warn(`2D basemap ${BASEMAPS[index].label} failed its tile probe.`);
+        probeBasemap(index + 1);
+      };
+      image.src = tileTemplate.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0");
+    };
+    probeBasemapRef.current = probeBasemap;
+
+    const onMapError = (event: unknown) => {
+      const detail = event as { error?: { message?: string; url?: string } };
+      const message = `${detail.error?.message ?? ""} ${detail.error?.url ?? ""}`;
+      const active = BASEMAPS[activeBasemapRef.current];
+      const host = active ? new URL(active.source.tiles[0]).hostname : "";
+      // Ignore unrelated style/data errors; the tile probe handles generic network failures.
+      if (!host || !message.includes(host)) return;
+      const nextIndex = activeBasemapRef.current + 1;
+      if (nextIndex < BASEMAPS.length) probeBasemap(nextIndex);
+      else {
         setMapStatus("error");
         setMapError("All free map tile sources failed to load. Check your connection and try again.");
       }
@@ -202,7 +241,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       : null;
     if (resizeObserver && el.current) resizeObserver.observe(el.current);
     map.on("load", () => {
-      setMapStatus(activeBasemapRef.current === 0 ? "ready" : "fallback");
+      setMapStatus("loading");
       map.resize();
       window.requestAnimationFrame(() => map.resize());
 
@@ -268,6 +307,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       map.on("mouseleave", "live-event-points", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "event-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "event-points", () => { map.getCanvas().style.cursor = "grab"; });
+      probeBasemap(activeBasemapRef.current);
     });
 
     map.on("moveend", () => {
@@ -281,6 +321,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
 
     return () => {
       resizeObserver?.disconnect();
+      probeBasemapRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -308,26 +349,13 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
 
   const retryBasemap = () => {
     const map = mapRef.current;
-    if (!map) return;
     setMapError("");
-    setActiveRetry(map);
-  };
-
-  const setActiveRetry = (map: maplibregl.Map) => {
-    activeBasemapRef.current = 0;
-    BASEMAPS.forEach(basemap => {
-      const layerId = `base-layer-${basemap.id}`;
-      if (map.getLayer(layerId)) {
-        map.setLayoutProperty(layerId, "visibility", basemap.id === "osm" ? "visible" : "none");
-      }
-    });
-    const source = map.getSource("base-osm");
-    if (source && "setTiles" in source && typeof source.setTiles === "function") {
-      source.setTiles(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"]);
+    if (!map || !probeBasemapRef.current) {
+      window.location.reload();
+      return;
     }
-    setMapStatus("loading");
     map.resize();
-    map.triggerRepaint();
+    probeBasemapRef.current(0);
   };
 
   return (
