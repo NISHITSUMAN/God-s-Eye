@@ -413,7 +413,7 @@ export async function searchNISARCoverage(options: {
   }
 
   if (!selected.length) {
-    throw new Error("NASA CMR returned no matching NISAR GCOV, GSLC, GUNW or SME2 product collections.");
+    throw new Error(`NASA CMR returned no matching collection for product family: ${productCodes.join(", ")}.`);
   }
 
   const results = await Promise.allSettled(selected.map(collection =>
