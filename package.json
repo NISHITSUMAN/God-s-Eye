@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/copy-cesium-assets.mjs && vite dev",
-    "build": "node scripts/copy-cesium-assets.mjs && vite build",
-    "build:dev": "node scripts/copy-cesium-assets.mjs && vite build --mode development",
+    "build": "node scripts/copy-cesium-assets.mjs && vite build && node scripts/verify-cesium-output.mjs",
+    "build:dev": "node scripts/copy-cesium-assets.mjs && vite build --mode development && node scripts/verify-cesium-output.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
