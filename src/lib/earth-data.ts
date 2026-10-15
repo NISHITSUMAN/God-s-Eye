@@ -120,7 +120,7 @@ export const sampleDataProvider: EarthDataProvider = {
 
 export const severityBand = (severity: number): SeverityBand => severity >= 0.7 ? "high" : severity >= 0.45 ? "moderate" : "low";
 export const confidenceRank: Record<Confidence, number> = { Low: 1, Moderate: 2, High: 3 };
-export const lodForAltitude = (altitude: number): LodBand => altitude >= 1.55 ? "global" : altitude >= 0.7 ? "regional" : altitude >= 0.24 ? "local" : "analysis";
+export const lodForAltitude = (altitude: number): LodBand => altitude >= 1.55 ? "global" : altitude >= 0.2 ? "regional" : altitude >= 0.015 ? "local" : "analysis";
 
 export function eventOpacity(event: EarthEventRecord) {
   if (event.confidence === "High") return 1;
