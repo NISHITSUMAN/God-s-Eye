@@ -67,7 +67,7 @@ export function CommandBar() {
         </div>
       )}
       {!active && messages.length === 0 && (
-        <div className="mb-2 flex flex-wrap justify-center gap-1.5">
+        <div className="command-examples mb-2 flex flex-wrap justify-center gap-1.5">
           {EXAMPLES.map((e) => (
             <button key={e} onClick={() => submit(e)} className="glass px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">{e}</button>
           ))}
@@ -76,7 +76,7 @@ export function CommandBar() {
       <form onSubmit={(e) => { e.preventDefault(); submit(v); }}
         className={cn("glass flex items-center gap-3 px-4 py-2.5 transition-shadow", active && "glow-cyan")}>
         <span className={cn("size-2 rounded-full bg-primary", (active || steps) && "animate-ai-pulse")} />
-        <input value={v} onChange={(e) => setV(e.target.value)} onFocus={() => setActive(true)} placeholder="Ask Third Eye anything…" className="flex-1 bg-transparent text-[14px] placeholder:text-subtle focus:outline-none" />
+        <input value={v} onChange={(e) => setV(e.target.value)} onFocus={() => setActive(true)} placeholder="Ask or search…" className="flex-1 bg-transparent text-[14px] placeholder:text-subtle focus:outline-none" />
         <button type="button" title="Voice input is not connected in this prototype" aria-label="Voice input unavailable in this prototype" className="cursor-not-allowed text-subtle opacity-50" disabled><Mic className="size-4" strokeWidth={1.5} /></button>
         <button type="submit" disabled={!v.trim()} className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground disabled:bg-elevated disabled:text-subtle" aria-label="Send"><ArrowUp className="size-4" /></button>
       </form>
