@@ -110,7 +110,7 @@ export default function EarthGlobe() {
       }
     };
 
-    const installEsriFallback = () => {
+    const installEsriFallback = (notice?: string) => {
       if (cancelled || viewer.isDestroyed()) return;
       const provider = esriWorldImagery();
       if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
@@ -118,7 +118,7 @@ export default function EarthGlobe() {
       activeProvider = provider;
       setImageryLabel("Esri World Imagery");
       setReady(true);
-      setError("The preferred imagery source failed; using Esri satellite imagery.");
+      setError(notice ?? null);
       provider.errorEvent.addEventListener((tileError) => {
         if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
         fallbackBusy = true;
@@ -137,7 +137,7 @@ export default function EarthGlobe() {
       provider.errorEvent.addEventListener((tileError) => {
         if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
         fallbackBusy = true;
-        installEsriFallback();
+        installEsriFallback("The configured imagery source failed; switched to Esri World Imagery.");
         fallbackBusy = false;
       });
     };
