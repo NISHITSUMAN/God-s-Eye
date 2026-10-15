@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { EARTH_EVENTS, confidenceRank, lodForAltitude, severityBand, type EarthEventRecord, type EarthMode, type EvidenceClass, type LodBand, type SeverityBand } from "./earth-data";
 import type { AOI, AnalysisResult } from "./analysis";
 import type { Phenomenon } from "./mock-data";
+import { fetchLiveEarthData, type LiveEarthEvent } from "./live-data";
 
 export type Mode = "science" | "intelligence";
 export interface View { lat: number; lng: number; altitude: number }
@@ -27,6 +28,11 @@ export interface AIMessage { id: string; role: "user" | "system"; text: string; 
 export interface AppState {
   aoi: AOI | null;
   analyses: AnalysisResult[];
+  liveEvents: LiveEarthEvent[];
+  liveDataStatus: "idle" | "loading" | "ready" | "partial" | "error";
+  liveDataUpdatedAt: string | null;
+  liveDataError: string | null;
+  refreshLiveData: () => Promise<void>;
   setAOI: (aoi: AOI | null) => void;
   addAnalysis: (result: AnalysisResult) => void;
   sidebarCollapsed: boolean;
@@ -83,6 +89,38 @@ const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", curren
 export const useApp = create<AppState>((set) => ({
   aoi: null,
   analyses: [],
+  liveEvents: [],
+  liveDataStatus: "idle",
+  liveDataUpdatedAt: null,
+  liveDataError: null,
+  refreshLiveData: async () => {
+    if (useApp.getState().liveDataStatus === "loading") return;
+    set({ liveDataStatus: "loading", liveDataError: null });
+    try {
+      const result = await fetchLiveEarthData();
+      set((state) => {
+        const failedUSGS = result.errors.some((error) => error.startsWith("USGS:"));
+        const failedEONET = result.errors.some((error) => error.startsWith("NASA EONET:"));
+        const retained = state.liveEvents.filter((event) =>
+          (event.source === "USGS" && failedUSGS) ||
+          (event.source === "NASA EONET" && failedEONET),
+        );
+        const combined = [...retained, ...result.events];
+        const unique = [...new Map(combined.map((event) => [event.id, event])).values()];
+        return {
+          liveEvents: unique,
+          liveDataStatus: result.errors.length ? "partial" : "ready",
+          liveDataUpdatedAt: new Date().toISOString(),
+          liveDataError: result.errors.length ? result.errors.join(" ") : null,
+        };
+      });
+    } catch (error) {
+      set((state) => ({
+        liveDataStatus: state.liveEvents.length ? "partial" : "error",
+        liveDataError: error instanceof Error ? error.message : "Live data could not be loaded.",
+      }));
+    }
+  },
   setAOI: (aoi) => set({ aoi }),
   addAnalysis: (result) => set(state => ({ analyses: [...state.analyses,result], investigation: {...state.investigation,lastAnalysisId:result.id} })),
   sidebarCollapsed: true,
@@ -121,9 +159,10 @@ export const useApp = create<AppState>((set) => ({
   setOpacity: (id, value) => set((state) => ({ opacity: { ...state.opacity, [id]: value } })),
   select: (id) => set((state) => {
     if (!id) return { selectedId: null, investigation: { ...state.investigation, selectedId: null } };
-    const event = EARTH_EVENTS.find((item) => item.id === id);
+    const event = EARTH_EVENTS.find((item) => item.id === id) ?? state.liveEvents.find((item) => item.id === id);
     if (!event) return { selectedId: id, investigation: { ...state.investigation, selectedId: id } };
-    const monthIndex = new Date(event.date).getUTCMonth();
+    const eventDay = event.date.slice(0, 10);
+    const monthIndex = new Date(eventDay).getUTCMonth();
     return {
       selectedId: id,
       view: { lat: event.lat, lng: event.lng, altitude: 0.62 },
@@ -132,9 +171,9 @@ export const useApp = create<AppState>((set) => ({
       monthIndex,
       time: {
         ...state.time,
-        start: event.date < state.time.start ? event.date : state.time.start,
-        end: event.date > state.time.end ? event.date : state.time.end,
-        current: event.date,
+        start: eventDay < state.time.start ? eventDay : state.time.start,
+        end: eventDay > state.time.end ? eventDay : state.time.end,
+        current: eventDay,
       },
       investigation: { ...state.investigation, selectedId: id, region: event.country, types: [event.type] },
     };
