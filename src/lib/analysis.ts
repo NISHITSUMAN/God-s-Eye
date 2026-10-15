@@ -24,16 +24,17 @@ export const ANALYSIS_CATALOG = [
 ];
 
 export function makeAOI(feature: Feature<Geometry>, name = "Selected area"): AOI {
-  const bounds = bbox(feature);
+  const safeFeature = validateGeometry(feature);
+  const bounds = bbox(safeFeature);
   if (bounds.length !== 4 || !bounds.every(Number.isFinite)) {
     throw new Error("The selected geometry has no valid geographic bounds.");
   }
   const [west = 0, south = 0, east = 0, north = 0] = bounds;
-  const areaKm2 = area(feature) / 1e6;
+  const areaKm2 = area(safeFeature) / 1e6;
   if (!Number.isFinite(areaKm2) || areaKm2 < 0) throw new Error("The area could not be calculated from this geometry.");
   return {
     name,
-    feature,
+    feature: safeFeature,
     areaKm2,
     bounds,
     center: { lng: (west + east) / 2, lat: (south + north) / 2 },
@@ -74,6 +75,7 @@ export function distanceKm(a: Position, b: Position): number {
 }
 
 export function circleAOI(center: Position, radiusKm: number) {
+  if (!isValidPosition(center)) throw new Error("Circle center must be valid longitude and latitude values.");
   if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 20000) {
     throw new Error("Circle radius must be greater than 0 and no more than 20,000 km.");
   }
@@ -101,6 +103,39 @@ export function validateGeometry(value: unknown): Feature<Geometry> {
   if (state.vertices === 0) throw new Error("The geometry contains no coordinates.");
   if (state.vertices > 10000) throw new Error("Area files are limited to 10,000 vertices.");
   return { type: "Feature", properties: {}, geometry };
+}
+
+function isValidPosition(value: unknown): value is Position {
+  if (!Array.isArray(value) || value.length < 2) return false;
+  const [lng, lat] = value;
+  return typeof lng === "number" && typeof lat === "number"
+    && Number.isFinite(lng) && Number.isFinite(lat)
+    && Math.abs(lng) <= 180 && Math.abs(lat) <= 90
+    && value.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate));
+}
+
+function isLinearRing(value: unknown): value is Position[] {
+  if (!Array.isArray(value) || value.length < 4 || !value.every(isValidPosition)) return false;
+  const first = value[0] as Position;
+  const last = value[value.length - 1] as Position;
+  return first[0] === last[0] && first[1] === last[1];
+}
+
+function validateGeometryStructure(type: string, coordinates: unknown): void {
+  if (type === "Point" && !isValidPosition(coordinates)) {
+    throw new Error("Point geometry must contain a valid longitude and latitude position.");
+  }
+  if (type === "LineString" && (!Array.isArray(coordinates) || coordinates.length < 2 || !coordinates.every(isValidPosition))) {
+    throw new Error("LineString geometry needs at least two valid positions.");
+  }
+  const validPolygon = (polygon: unknown): boolean =>
+    Array.isArray(polygon) && polygon.length > 0 && polygon.every(isLinearRing);
+  if (type === "Polygon" && !validPolygon(coordinates)) {
+    throw new Error("Polygon rings need at least four valid positions and must end at their starting point.");
+  }
+  if (type === "MultiPolygon" && (!Array.isArray(coordinates) || coordinates.length === 0 || !coordinates.every(validPolygon))) {
+    throw new Error("MultiPolygon geometry must contain valid polygons.");
+  }
 }
 
 function normalizeGeometry(value: unknown, state: { vertices: number }): Geometry {
@@ -136,18 +171,16 @@ function normalizeGeometry(value: unknown, state: { vertices: number }): Geometr
   }
 
   const coordinates = record.coordinates;
+  validateGeometryStructure(String(record.type), coordinates);
   function check(item: unknown): void {
-    if (!Array.isArray(item) || item.length === 0) throw new Error("Geometry coordinates must be non-empty arrays.");
-    if (typeof item[0] === "number") {
-      const [lng, lat] = item;
-      if (item.length < 2 || typeof lng !== "number" || typeof lat !== "number"
-        || !Number.isFinite(lng) || !Number.isFinite(lat)
-        || Math.abs(lng) > 180 || Math.abs(lat) > 90) {
-        throw new Error("Coordinates must contain valid longitude and latitude values.");
-      }
+    if (isValidPosition(item)) {
       state.vertices += 1;
       if (state.vertices > 10000) throw new Error("Area files are limited to 10,000 vertices.");
       return;
+    }
+    if (!Array.isArray(item) || item.length === 0) throw new Error("Geometry coordinates must be non-empty arrays.");
+    if (typeof item[0] === "number") {
+      throw new Error("Coordinates must contain valid longitude and latitude values.");
     }
     item.forEach(check);
   }
