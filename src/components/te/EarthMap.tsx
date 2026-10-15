@@ -1,23 +1,99 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
 import { phenomenonColor } from "@/lib/mock-data";
 
+type MapStatus = "loading" | "ready" | "fallback" | "error";
+
+const BASEMAPS = [
+  {
+    id: "osm",
+    label: "OpenStreetMap",
+    source: {
+      type: "raster" as const,
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  {
+    id: "carto",
+    label: "CARTO Dark",
+    source: {
+      type: "raster" as const,
+      tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors © CARTO",
+    },
+  },
+  {
+    id: "esri",
+    label: "Esri World Imagery",
+    source: {
+      type: "raster" as const,
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    },
+  },
+] as const;
+
 export default function EarthMap({ compact = false }: { compact?: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const layers = useApp(s => s.layers); const filter = useApp(s => s.filter); const time = useApp(s => s.time); const lod = useApp(s => s.lod); const selected = useApp(s => s.selectedId); const nonce = useApp(s => s.viewNonce); const opacity = useApp(s => s.opacity); const liveEvents = useApp(s => s.liveEvents);
+  const activeBasemapRef = useRef(0);
+  const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
+  const [mapError, setMapError] = useState("");
+  const layers = useApp(s => s.layers);
+  const filter = useApp(s => s.filter);
+  const time = useApp(s => s.time);
+  const lod = useApp(s => s.lod);
+  const selected = useApp(s => s.selectedId);
+  const nonce = useApp(s => s.viewNonce);
+  const opacity = useApp(s => s.opacity);
+  const liveEvents = useApp(s => s.liveEvents);
+
   const update = () => {
-    const map = mapRef.current; if (!map?.isStyleLoaded()) return;
+    const map = mapRef.current;
+    if (!map?.isStyleLoaded()) return;
+
     const state = useApp.getState();
     const events = visibleEvents(state);
-    const pointData = { type: "FeatureCollection" as const, features: events.map(event => ({ type: "Feature" as const, properties: { id: event.id, color: phenomenonColor(event.type), alpha: eventOpacity(event) * ((state.opacity[event.type] ?? 100) / 100), selected: event.id === state.selectedId }, geometry: { type: "Point" as const, coordinates: [event.lng, event.lat] } })) };
-    const polygonData = { type: "FeatureCollection" as const, features: state.layers.has("nisar-footprints") ? events.map(event => ({ type: "Feature" as const, properties: { id: event.id, selected: event.id === state.selectedId }, geometry: { type: "Polygon" as const, coordinates: [[...event.geometry.coordinates, ...(event.geometry.coordinates[0] ? [event.geometry.coordinates[0]] : [])].map(p => [p.lng, p.lat])] } })) : [] };
+    const pointData = {
+      type: "FeatureCollection" as const,
+      features: events.map(event => ({
+        type: "Feature" as const,
+        properties: {
+          id: event.id,
+          color: phenomenonColor(event.type),
+          alpha: eventOpacity(event) * ((state.opacity[event.type] ?? 100) / 100),
+          selected: event.id === state.selectedId,
+        },
+        geometry: { type: "Point" as const, coordinates: [event.lng, event.lat] },
+      })),
+    };
+    const polygonData = {
+      type: "FeatureCollection" as const,
+      features: state.layers.has("nisar-footprints")
+        ? events.map(event => ({
+            type: "Feature" as const,
+            properties: { id: event.id, selected: event.id === state.selectedId },
+            geometry: {
+              type: "Polygon" as const,
+              coordinates: [[
+                ...event.geometry.coordinates,
+                ...(event.geometry.coordinates[0] ? [event.geometry.coordinates[0]] : []),
+              ].map(point => [point.lng, point.lat])],
+            },
+          }))
+        : [],
+    };
     (map.getSource("events") as maplibregl.GeoJSONSource | undefined)?.setData(pointData);
     (map.getSource("footprints") as maplibregl.GeoJSONSource | undefined)?.setData(polygonData);
-    const liveFeatures = state.liveEvents.filter((event) => {
+
+    const liveFeatures = state.liveEvents.filter(event => {
       if (!state.layers.has(event.layerId)) return false;
       if (state.filter.types && !state.filter.types.includes(event.type)) return false;
       if (state.filter.region && !`${event.region} ${event.country}`.toLowerCase().includes(state.filter.region.toLowerCase())) return false;
@@ -39,39 +115,236 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       },
       geometry: { type: "Point" as const, coordinates: [event.lng, event.lat] },
     }));
-    (map.getSource("live-events") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: liveFeatures });
+    (map.getSource("live-events") as maplibregl.GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: liveFeatures,
+    });
   };
+
   useEffect(() => {
     if (!el.current) return;
+    let map: maplibregl.Map;
+    activeBasemapRef.current = 0;
+    setMapStatus("loading");
+    setMapError("");
+
+    const sources: Record<string, maplibregl.SourceSpecification> = {};
+    const styleLayers: maplibregl.LayerSpecification[] = [];
+    BASEMAPS.forEach((basemap, index) => {
+      sources[`base-${basemap.id}`] = basemap.source;
+      styleLayers.push({
+        id: `base-layer-${basemap.id}`,
+        type: "raster",
+        source: `base-${basemap.id}`,
+        layout: { visibility: index === 0 ? "visible" : "none" },
+      });
+    });
+
     const view = useApp.getState().view;
-    const map = new maplibregl.Map({ container: el.current, center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), attributionControl: { compact: true }, style: { version: 8, sources: { imagery: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "imagery", type: "raster", source: "imagery" }] } });
+    try {
+      map = new maplibregl.Map({
+        container: el.current,
+        center: [view.lng, view.lat],
+        zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)),
+        attributionControl: { compact: true },
+        style: { version: 8, sources, layers: styleLayers },
+        maxZoom: 18,
+        minZoom: 1,
+        trackResize: true,
+      });
+    } catch (error) {
+      setMapStatus("error");
+      setMapError(error instanceof Error ? error.message : "The 2D map could not be started in this browser.");
+      return;
+    }
     mapRef.current = map;
+
+    const setActiveBasemap = (index: number) => {
+      const validIndex = Math.max(0, Math.min(BASEMAPS.length - 1, index));
+      activeBasemapRef.current = validIndex;
+      BASEMAPS.forEach((basemap, layerIndex) => {
+        const layerId = `base-layer-${basemap.id}`;
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", layerIndex === validIndex ? "visible" : "none");
+        }
+      });
+      if (validIndex === 0) {
+        setMapStatus("loading");
+        setMapError("");
+      } else {
+        setMapStatus("fallback");
+        setMapError(`The previous map tile source failed. Trying ${BASEMAPS[validIndex].label}.`);
+      }
+      map.resize();
+      map.triggerRepaint();
+    };
+
+    const onMapError = (event: unknown) => {
+      const detail = event as { sourceId?: string; error?: { message?: string } };
+      const sourceId = detail.sourceId;
+      const failedIndex = BASEMAPS.findIndex(basemap => `base-${basemap.id}` === sourceId);
+      if (failedIndex < 0 || failedIndex !== activeBasemapRef.current) return;
+
+      const nextIndex = failedIndex + 1;
+      if (nextIndex < BASEMAPS.length) {
+        console.warn(`2D basemap ${BASEMAPS[failedIndex].label} failed; switching to ${BASEMAPS[nextIndex].label}.`, detail.error);
+        setActiveBasemap(nextIndex);
+      } else {
+        console.error("All 2D basemap providers failed.", detail.error);
+        setMapStatus("error");
+        setMapError("All free map tile sources failed to load. Check your connection and try again.");
+      }
+    };
+    map.on("error", onMapError);
+
     const resizeObserver = typeof ResizeObserver !== "undefined"
       ? new ResizeObserver(() => map.resize())
       : null;
     if (resizeObserver && el.current) resizeObserver.observe(el.current);
     map.on("load", () => {
-      const selection = getComputedStyle(document.documentElement).getPropertyValue("--earth-selection").trim();
+      setMapStatus(activeBasemapRef.current === 0 ? "ready" : "fallback");
+      map.resize();
+      window.requestAnimationFrame(() => map.resize());
+
+      const selection = getComputedStyle(document.documentElement).getPropertyValue("--earth-selection").trim() || "#25D9FF";
       map.addSource("events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("footprints", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("live-events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({ id: "footprint-fill", type: "fill", source: "footprints", paint: { "fill-color": selection, "fill-opacity": 0.07 } });
-      map.addLayer({ id: "footprint-outline", type: "line", source: "footprints", paint: { "line-color": selection, "line-width": ["case", ["get", "selected"], 2, 1], "line-opacity": 0.65 } });
-      map.addLayer({ id: "event-points", type: "circle", source: "events", paint: { "circle-color": ["get", "color"], "circle-opacity": ["get", "alpha"], "circle-radius": ["case", ["get", "selected"], 7, 4], "circle-stroke-color": selection, "circle-stroke-width": ["case", ["get", "selected"], 2, 0] } });
-      map.addLayer({ id: "live-event-points", type: "circle", source: "live-events", paint: { "circle-color": ["get", "color"], "circle-opacity": 0.92, "circle-radius": 6, "circle-stroke-color": "#F7FAFC", "circle-stroke-width": 1.5 } });
+      map.addLayer({
+        id: "footprint-fill",
+        type: "fill",
+        source: "footprints",
+        paint: { "fill-color": selection, "fill-opacity": 0.07 },
+      });
+      map.addLayer({
+        id: "footprint-outline",
+        type: "line",
+        source: "footprints",
+        paint: {
+          "line-color": selection,
+          "line-width": ["case", ["get", "selected"], 2, 1],
+          "line-opacity": 0.65,
+        },
+      });
+      map.addLayer({
+        id: "event-points",
+        type: "circle",
+        source: "events",
+        paint: {
+          "circle-color": ["get", "color"],
+          "circle-opacity": ["get", "alpha"],
+          "circle-radius": ["case", ["get", "selected"], 7, 4],
+          "circle-stroke-color": selection,
+          "circle-stroke-width": ["case", ["get", "selected"], 2, 0],
+        },
+      });
+      map.addLayer({
+        id: "live-event-points",
+        type: "circle",
+        source: "live-events",
+        paint: {
+          "circle-color": ["get", "color"],
+          "circle-opacity": 0.92,
+          "circle-radius": 6,
+          "circle-stroke-color": "#F7FAFC",
+          "circle-stroke-width": 1.5,
+        },
+      });
       update();
-      map.on("click", "event-points", e => { const id = e.features?.[0]?.properties?.['id']; if (typeof id === "string") useApp.getState().select(id); });
-      map.on("click", "footprint-fill", e => { const id = e.features?.[0]?.properties?.['id']; if (typeof id === "string") useApp.getState().select(id); });
-      map.on("click", "live-event-points", e => { const id = e.features?.[0]?.properties?.["id"]; if (typeof id === "string") useApp.getState().select(id); });
+
+      map.on("click", "event-points", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
+      map.on("click", "footprint-fill", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
+      map.on("click", "live-event-points", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
       map.on("mouseenter", "live-event-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "live-event-points", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "event-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "event-points", () => { map.getCanvas().style.cursor = "grab"; });
     });
-    map.on("moveend", () => { const center = map.getCenter(); useApp.getState().syncView({ lat: center.lat, lng: center.lng, altitude: Math.pow(2, 4 - map.getZoom()) / 4 }); });
-    return () => { resizeObserver?.disconnect(); map.remove(); mapRef.current = null; };
+
+    map.on("moveend", () => {
+      const center = map.getCenter();
+      useApp.getState().syncView({
+        lat: center.lat,
+        lng: center.lng,
+        altitude: Math.pow(2, 4 - map.getZoom()) / 4,
+      });
+    });
+
+    return () => {
+      resizeObserver?.disconnect();
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
+
   useEffect(update, [layers, filter, time, lod, selected, opacity, liveEvents]);
-  useEffect(() => { const view = useApp.getState().view; mapRef.current?.flyTo({ center: [view.lng, view.lat], zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)), duration: 1500, essential: false }); }, [nonce]);
-  return <div ref={el} className={compact ? "absolute inset-0 earth-renderer earth-renderer-compact" : "absolute inset-0 earth-renderer"} data-earth-engine="maplibre"><div className="earth-attribution">USGS/NASA live records · NISAR science overlays are sample-only</div></div>;
+
+  useEffect(() => {
+    const view = useApp.getState().view;
+    mapRef.current?.flyTo({
+      center: [view.lng, view.lat],
+      zoom: Math.max(1, 4 - Math.log2(view.altitude * 4)),
+      duration: 1000,
+      essential: false,
+    });
+  }, [nonce]);
+
+  useEffect(() => {
+    if (mapStatus !== "fallback") return;
+    const timer = window.setTimeout(() => {
+      setMapStatus(status => status === "fallback" ? "ready" : status);
+    }, 2800);
+    return () => window.clearTimeout(timer);
+  }, [mapStatus]);
+
+  const retryBasemap = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    setMapError("");
+    setActiveRetry(map);
+  };
+
+  const setActiveRetry = (map: maplibregl.Map) => {
+    activeBasemapRef.current = 0;
+    BASEMAPS.forEach(basemap => {
+      const layerId = `base-layer-${basemap.id}`;
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", basemap.id === "osm" ? "visible" : "none");
+      }
+    });
+    const source = map.getSource("base-osm");
+    if (source && "setTiles" in source && typeof source.setTiles === "function") {
+      source.setTiles(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"]);
+    }
+    setMapStatus("loading");
+    map.resize();
+    map.triggerRepaint();
+  };
+
+  return (
+    <div ref={el} className={compact ? "absolute inset-0 earth-renderer earth-renderer-compact" : "absolute inset-0 earth-renderer"} data-earth-engine="maplibre">
+      {mapStatus === "loading" && (
+        <div className="earth-map-status label-xs" role="status">LOADING 2D MAP…</div>
+      )}
+      {mapStatus === "fallback" && (
+        <div className="earth-map-status label-xs" role="status">SWITCHING TO BACKUP MAP…</div>
+      )}
+      {mapStatus === "error" && (
+        <div className="earth-map-status earth-map-status-error glass" role="status">
+          <p>{mapError || "The map could not be loaded."}</p>
+          <button type="button" onClick={retryBasemap}>RETRY MAP</button>
+        </div>
+      )}
+      <div className="earth-attribution">Public USGS/NASA historical context · NISAR science overlays are sample-only</div>
+    </div>
+  );
 }
