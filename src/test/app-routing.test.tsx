@@ -33,6 +33,6 @@ describe("App route registration", () => {
 
   it("does not mistake unknown paths for registered application routes", () => {
     const router = makeRouter("/this-route-does-not-exist");
-    expect(router.routesByPath["/this-route-does-not-exist"]).toBeUndefined();
+    expect(Object.keys(router.routesByPath)).not.toContain("/this-route-does-not-exist");
   });
 });
