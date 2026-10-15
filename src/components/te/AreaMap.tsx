@@ -156,7 +156,12 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
             ];
         return [{
           type: "Feature" as const,
-          properties: { id: granule.id, product: granule.productCode, date: day },
+          properties: {
+            id: granule.id,
+            product: granule.productCode,
+            date: day,
+            extentType: granule.footprint && granule.footprint.length >= 3 ? "source-footprint" : "approximate-bounds",
+          },
           geometry: { type: "Polygon" as const, coordinates: [coordinates] },
         }];
       });
@@ -171,14 +176,15 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
       map.addLayer({ id: "india-admin-fill", type: "fill", source: "india-admin", paint: { "fill-color": "#FF9933", "fill-opacity": 0.12 } });
       map.addLayer({ id: "india-admin-outline", type: "line", source: "india-admin", paint: { "line-color": "#FF9933", "line-width": 3, "line-opacity": 0.98 } });
       map.addSource("nisar-coverage", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({ id: "nisar-coverage-fill", type: "fill", source: "nisar-coverage", paint: { "fill-color": "#2EC4FF", "fill-opacity": 0.09 } });
-      map.addLayer({ id: "nisar-coverage-outline", type: "line", source: "nisar-coverage", paint: { "line-color": "#2EC4FF", "line-width": 1.7, "line-opacity": 0.95 } });
+      map.addLayer({ id: "nisar-coverage-fill", type: "fill", source: "nisar-coverage", paint: { "fill-color": "#2EC4FF", "fill-opacity": ["case", ["==", ["get", "extentType"], "source-footprint"], 0.1, 0.03] } });
+      map.addLayer({ id: "nisar-coverage-outline", type: "line", source: "nisar-coverage", filter: ["==", ["get", "extentType"], "source-footprint"], paint: { "line-color": "#2EC4FF", "line-width": 1.7, "line-opacity": 0.95 } });
+      map.addLayer({ id: "nisar-coverage-bounds-outline", type: "line", source: "nisar-coverage", filter: ["==", ["get", "extentType"], "approximate-bounds"], paint: { "line-color": "#88DFFF", "line-width": 1.1, "line-opacity": 0.72, "line-dasharray": [2, 2] } });
       map.addSource("aoi", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "aoi-fill", type: "fill", source: "aoi", paint: { "fill-color": color, "fill-opacity": 0.15 } });
       map.addLayer({ id: "aoi-line", type: "line", source: "aoi", paint: { "line-color": color, "line-width": 2.5 } });
       map.addLayer({ id: "aoi-point", type: "circle", source: "aoi", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": color, "circle-radius": 6 } });
       map.on("click", event => {
-        const selected = map.queryRenderedFeatures(event.point, { layers: ["nisar-coverage-fill", "nisar-coverage-outline"] });
+        const selected = map.queryRenderedFeatures(event.point, { layers: ["nisar-coverage-fill", "nisar-coverage-outline", "nisar-coverage-bounds-outline"] });
         const id = selected[0]?.properties?.["id"];
         if (typeof id === "string") {
           useApp.getState().select(id);
