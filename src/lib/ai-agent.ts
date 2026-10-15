@@ -131,7 +131,7 @@ export async function runCommand(raw: string) {
     ]);
     if (type) useApp.getState().toggleLayer(type, true);
     useApp.getState().setFilter({ types: types ?? null, region: region && region !== "India" ? region : region });
-    if (loc) useApp.getState().flyTo({ lat: loc.lat, lng: loc.lng, altitude: loc.kind === "Country" ? 1.1 : 0.7 });
+    if (loc) useApp.getState().flyTo({ lat: loc.lat, lng: loc.lng, altitude: loc.kind === "Country" ? 1.1 : 0.02 });
     const n = visibleEvents(useApp.getState()).length;
     const label = types ? types.map(phenomenonLabel).join(", ").toLowerCase() : "change";
     return reply(
