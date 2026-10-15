@@ -130,7 +130,12 @@ export const useApp = create<AppState>((set) => ({
       lod: "regional",
       viewNonce: state.viewNonce + 1,
       monthIndex,
-      time: { ...state.time, current: event.date },
+      time: {
+        ...state.time,
+        start: event.date < state.time.start ? event.date : state.time.start,
+        end: event.date > state.time.end ? event.date : state.time.end,
+        current: event.date,
+      },
       investigation: { ...state.investigation, selectedId: id, region: event.country, types: [event.type] },
     };
   }),
