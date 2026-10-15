@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Eye, EyeOff, SlidersHorizontal, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { useApp } from "@/lib/store";
 import { PHENOMENA } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const NISAR_PRODUCTS = ["RSLC", "RIFG", "RUNW", "ROFF", "GSLC", "GCOV", "GUNW", "GOFF", "SME2"];
 
-function Row({ id, label, swatch, demo, tag }: { id: string; label: string; swatch?: string; demo?: boolean; tag?: "LIVE" | "SAMPLE" }) {
+function Row({ id, label, swatch, demo, tag, disabled = false, onToggle }: { id: string; label: string; swatch?: string; demo?: boolean; tag?: "LIVE" | "SAMPLE" | "CATALOG"; disabled?: boolean; onToggle?: (enabled: boolean) => void }) {
   const on = useApp((s) => s.layers.has(id));
   const toggle = useApp((s) => s.toggleLayer);
   const opacity = useApp((s) => s.opacity[id] ?? 100);
@@ -16,14 +17,14 @@ function Row({ id, label, swatch, demo, tag }: { id: string; label: string; swat
   return (
     <div>
       <div className={cn("group flex h-8 items-center gap-2 rounded-md px-2 text-[13px] transition-colors hover:bg-elevated", on ? "text-foreground" : "text-subtle")}>
-        <button onClick={() => toggle(id)} disabled={demo} title={demo ? "This visualization is not connected in the current build." : undefined} className="flex flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed" aria-pressed={on} aria-disabled={demo || undefined}>
+        <button onClick={() => onToggle ? onToggle(!on) : toggle(id)} disabled={demo || disabled} title={demo ? "This visualization is not connected in the current build." : disabled ? "NISAR catalog is currently loading." : undefined} className="flex flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed" aria-pressed={on} aria-disabled={demo || disabled || undefined}>
           <span className="size-2 rounded-sm" style={{ background: swatch ?? "var(--primary)", opacity: on ? 1 : 0.3 }} />
           <span className="flex-1">{label}</span>
-          {tag && <span className={cn("font-mono text-[9px] tracking-wider", tag === "LIVE" ? "text-ok" : "text-subtle")}>{tag}</span>}
+          {tag && <span className={cn("font-mono text-[9px] tracking-wider", tag === "LIVE" ? "text-ok" : tag === "CATALOG" ? "text-primary" : "text-subtle")}>{tag}</span>}
           {demo && <span className="font-mono text-[9px] tracking-wider text-subtle">DEMO</span>}
         </button>
-        <button onClick={() => setOpen(!open)} disabled={demo} title={demo ? "No settings are available for an unconnected demo layer." : undefined} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed" aria-label="Layer settings" aria-disabled={demo || undefined}><SlidersHorizontal className="size-3.5 text-subtle" /></button>
-        <button onClick={() => toggle(id)} disabled={demo} title={demo ? "Visualization not connected." : undefined} aria-label="Toggle visibility" aria-disabled={demo || undefined}>{on ? <Eye className="size-3.5 text-muted-foreground" /> : <EyeOff className="size-3.5 text-subtle" />}</button>
+        <button onClick={() => setOpen(!open)} disabled={demo || disabled} title={demo ? "No settings are available for an unconnected demo layer." : undefined} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed" aria-label="Layer settings" aria-disabled={demo || disabled || undefined}><SlidersHorizontal className="size-3.5 text-subtle" /></button>
+        <button onClick={() => onToggle ? onToggle(!on) : toggle(id)} disabled={demo || disabled} title={demo ? "Visualization not connected." : undefined} aria-label="Toggle visibility" aria-disabled={demo || disabled || undefined}>{on ? <Eye className="size-3.5 text-muted-foreground" /> : <EyeOff className="size-3.5 text-subtle" />}</button>
       </div>
       {open && (
         <div className="flex items-center gap-2 px-2 pb-2 pl-6">
@@ -60,6 +61,22 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
   const liveUpdatedAt = useApp((s) => s.liveDataUpdatedAt);
   const liveDataError = useApp((s) => s.liveDataError);
   const refreshLiveData = useApp((s) => s.refreshLiveData);
+  const nisarStatus = useApp((s) => s.nisarStatus);
+  const nisarError = useApp((s) => s.nisarError);
+  const nisarGranules = useApp((s) => s.nisarGranules);
+  const nisarGranuleHits = useApp((s) => s.nisarGranuleHits);
+  const nisarCollections = useApp((s) => s.nisarCollections);
+  const nisarSelectedProducts = useApp((s) => s.nisarSelectedProductCodes);
+  const refreshNISARData = useApp((s) => s.refreshNISARData);
+
+  const changeProduct = (product: string, enabled: boolean) => {
+    const selected = useApp.getState().nisarSelectedProductCodes;
+    const next = enabled
+      ? [...new Set([...selected, product])]
+      : selected.filter((code) => code !== product);
+    if (!next.length) return;
+    void refreshNISARData(next);
+  };
 
   useEffect(() => {
     if (liveEnabled && liveStatus === "idle") void refreshLiveData();
@@ -79,12 +96,31 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
       </div>
       <div className="scroll-thin flex-1 space-y-1 overflow-y-auto px-1.5 pb-2">
         <Section title="Satellite">
+          <Row id="nisar-coverage" label="Real NISAR product coverage" swatch="#2EC4FF" tag="LIVE" disabled={nisarStatus === "loading"} />
           <Row id="nisar-footprints" label="Sample Observation Footprints" tag="SAMPLE" />
           <Row id="nisar-tracks" label="Sample Acquisition Tracks" tag="SAMPLE" />
         </Section>
         {mode === "science" ? (
-          <Section title="NISAR Products">
-            {NISAR_PRODUCTS.map((p) => <Row key={p} id={`prod-${p}`} label={p} demo />)}
+          <Section title="NISAR Product Families">
+            {NISAR_PRODUCTS.map((p) => <Row
+              key={p}
+              id={`prod-${p}`}
+              label={p}
+              swatch="#2EC4FF"
+              tag="CATALOG"
+              disabled={nisarStatus === "loading"}
+              onToggle={(enabled) => {
+                useApp.getState().toggleLayer(`prod-${p}`, enabled);
+                changeProduct(p, enabled);
+              }}
+            />)}
+            <div className="mx-2 mt-2 rounded-md border border-border bg-background/40 p-2.5">
+              <div className="flex items-center justify-between gap-2"><span className="label-xs">NASA CMR STATUS</span><span className={cn("font-mono text-[9px]", nisarStatus === "ready" ? "text-ok" : nisarStatus === "partial" || nisarStatus === "error" ? "text-amber" : "text-subtle")}>{nisarStatus.toUpperCase()}</span></div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">{nisarGranules.length} granules loaded · {nisarGranuleHits.toLocaleString()} matches · {nisarCollections.length} collections in catalog.</p>
+              {nisarError && <p role="status" className="mt-1 text-[10px] leading-relaxed text-amber">{nisarError}</p>}
+              <Button size="sm" variant="outline" className="mt-2 h-7 w-full text-[10px]" disabled={nisarStatus === "loading"} onClick={() => void refreshNISARData()}>{nisarStatus === "loading" ? "SEARCHING NASA CMR…" : "REFRESH NISAR PRODUCTS"}</Button>
+              <Link to="/data" className="mt-2 block text-center text-[10px] text-primary hover:underline">OPEN FULL DATA EXPLORER ↗</Link>
+            </div>
           </Section>
         ) : (
           <Section title="Phenomena">
@@ -92,8 +128,8 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
           </Section>
         )}
         <Section title="Live data sources">
-          <Row id="live-usgs" label="USGS earthquakes · 24 h" swatch="#a98bff" tag="LIVE" />
-          <Row id="live-eonet" label="NASA EONET events" swatch="#4fbf6a" tag="LIVE" />
+          <Row id="live-usgs" label="USGS earthquakes · M5+ / 2 y" swatch="#a98bff" tag="LIVE" />
+          <Row id="live-eonet" label="NASA EONET · 2 y archive" swatch="#4fbf6a" tag="LIVE" />
           <div className="mx-2 mt-2 rounded-md border border-border bg-background/40 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="label-xs">FEED STATUS</span>
