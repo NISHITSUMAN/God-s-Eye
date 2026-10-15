@@ -119,10 +119,10 @@
 button, a, input, select, summary { transition: background-color .2s, border-color .2s, color .2s, opacity .2s; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .earth-renderer .cesium-viewer, .earth-renderer .cesium-viewer-cesiumWidgetContainer, .earth-renderer .cesium-widget, .earth-renderer canvas { width: 100%; height: 100%; }
-.cesium-viewer-bottom { left: 8px; bottom: 190px; }
-.cesium-widget-credits { display: none; }
-.earth-attribution { position: absolute; bottom: 184px; left: 50%; transform: translateX(-50%); font: 8px var(--font-mono); color: var(--muted-foreground); pointer-events: none; white-space: nowrap; }
-.earth-status { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%); }
+.cesium-viewer-bottom { left: 8px; bottom: 224px; z-index: 5; }
+.cesium-widget-credits { display: block; max-width: min(70vw, 560px); white-space: normal; font-size: 10px; }
+.earth-attribution { position: absolute; bottom: 204px; left: 50%; transform: translateX(-50%); font: 8px var(--font-mono); color: var(--muted-foreground); pointer-events: none; white-space: nowrap; text-align: center; max-width: 90%; }
+.earth-status { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%); max-width: min(92%, 480px); text-align: center; padding: 8px 12px; background: color-mix(in oklab, var(--background) 82%, transparent); border: 1px solid var(--border); border-radius: 8px; }
 .earth-mode { position: absolute; top: 64px; left: 16px; z-index: 21; }
 .significance-control { position: absolute; top: 64px; right: 16px; z-index: 22; min-width: 218px; }
 .instrument-select, .instrument-input { border: 1px solid var(--border); border-radius: 6px; background: var(--elevated); color: var(--foreground); padding: 7px 9px; font-size: 12px; min-width: 0; }
