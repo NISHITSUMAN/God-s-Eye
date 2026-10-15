@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Database, Search, RefreshCw, Satellite, Clock3, MapPin, FileSearch, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/lib/store";
 import {
-  searchNISARCollections,
   searchNISARGranules,
   type NISARCollection,
   type NISARGranule,
 } from "@/lib/nasa-cmr";
 import { cn } from "@/lib/utils";
 
-type LoadState = "idle" | "loading" | "ready" | "error";
+type LoadState = "idle" | "loading" | "ready" | "partial" | "error";
 
 function formatDate(value: string | null) {
   if (!value) return "Not reported";
