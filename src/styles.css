@@ -293,11 +293,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     left: 8px;
     right: 8px;
     top: 143px;
-    bottom: 116px;
+    bottom: 142px;
     z-index: 35;
     overflow-y: auto;
     overscroll-behavior: contain;
-    max-height: calc(100% - 259px);
+    max-height: calc(100% - 285px);
   }
   .mobile-earth-panel > * {
     width: 100% !important;
@@ -334,6 +334,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .earth-timeline > div:first-child > span { font-size: 9px; white-space: nowrap; }
   .timeline-entries { display: none !important; }
   .earth-attribution {
+    display: none;
     left: 8px;
     bottom: 116px;
     transform: none;
