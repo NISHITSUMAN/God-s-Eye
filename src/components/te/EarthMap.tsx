@@ -144,6 +144,8 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
           productCode: granule.productCode,
           date: day,
           browseUrl: granule.browseUrl || "",
+          extentType: granule.footprint && granule.footprint.length >= 3 ? "source-footprint" : "approximate-bounds",
+          selected: granule.id === state.selectedId,
         },
         geometry: { type: "Polygon" as const, coordinates: [coordinates] },
       }];
@@ -312,16 +314,32 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         id: "nisar-coverage-fill",
         type: "fill",
         source: "nisar-coverage",
-        paint: { "fill-color": "#2EC4FF", "fill-opacity": 0.1 },
+        paint: {
+          "fill-color": "#2EC4FF",
+          "fill-opacity": ["case", ["==", ["get", "extentType"], "source-footprint"], 0.11, 0.035],
+        },
       });
       map.addLayer({
         id: "nisar-coverage-outline",
         type: "line",
         source: "nisar-coverage",
+        filter: ["==", ["get", "extentType"], "source-footprint"],
         paint: {
           "line-color": "#2EC4FF",
-          "line-width": ["case", ["get", "selected"], 3, 1.2],
-          "line-opacity": 0.92,
+          "line-width": ["case", ["get", "selected"], 3, 1.5],
+          "line-opacity": 0.96,
+        },
+      });
+      map.addLayer({
+        id: "nisar-coverage-bounds-outline",
+        type: "line",
+        source: "nisar-coverage",
+        filter: ["==", ["get", "extentType"], "approximate-bounds"],
+        paint: {
+          "line-color": "#88DFFF",
+          "line-width": ["case", ["get", "selected"], 2.5, 1.1],
+          "line-opacity": 0.72,
+          "line-dasharray": [2, 2],
         },
       });
       map.addLayer({
@@ -390,6 +408,12 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         const id = event.features?.[0]?.properties?.["id"];
         if (typeof id === "string") useApp.getState().select(id);
       });
+      map.on("click", "nisar-coverage-bounds-outline", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
+      map.on("mouseenter", "nisar-coverage-bounds-outline", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "nisar-coverage-bounds-outline", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "nisar-coverage-fill", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "nisar-coverage-fill", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "live-event-points", () => { map.getCanvas().style.cursor = "pointer"; });
