@@ -124,7 +124,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
     });
 
     const nisarFeatures = state.nisarGranules.flatMap((granule) => {
-      if (!state.layers.has("nisar-coverage") || !granule.bounds) return [];
+      if (!state.layers.has("nisar-coverage") || !state.layers.has(`prod-${granule.productCode}`) || !granule.bounds) return [];
       const day = (granule.startDate || "").slice(0, 10);
       if (day && (day < state.time.start || day > state.time.end || day > state.time.current)) return [];
       const coordinates = granule.footprint && granule.footprint.length >= 3
