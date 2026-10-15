@@ -420,7 +420,7 @@ export async function searchNISARCoverage(options: {
     searchNISARGranules({
       collectionConceptId: collection.conceptId,
       collectionShortName: collection.shortName,
-      bounds: options.bounds,
+      bounds: options.bounds ?? null,
       startDate: options.startDate,
       endDate: options.endDate,
       pageSize: 12,
