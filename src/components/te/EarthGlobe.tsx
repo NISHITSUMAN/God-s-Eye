@@ -417,22 +417,23 @@ export default function EarthGlobe() {
             [granule.bounds.west, granule.bounds.south] as [number, number],
           ];
       const positions = footprint.map(point => Cartesian3.fromDegrees(point[0], point[1], 350));
+      const hasSourceFootprint = Boolean(granule.footprint && granule.footprint.length >= 3);
       const chosen = granule.id === selected;
       const color = chosen ? system : Color.fromCssColorString("#2EC4FF");
       source.entities.add({
         id: granule.id,
-        name: `${granule.productCode} · ${day || "date unavailable"} · REAL NISAR COVERAGE`,
+        name: `${granule.productCode} · ${day || "date unavailable"} · ${hasSourceFootprint ? "SOURCE NISAR FOOTPRINT" : "APPROXIMATE CMR BOUNDS"}`,
         properties: { eventId: granule.id, source: "NASA CMR", sourceUrl: granule.earthdataSearchUrl, browseUrl: granule.browseUrl },
         polygon: {
           hierarchy: new PolygonHierarchy(footprint.slice(0, -1).map(point => Cartesian3.fromDegrees(point[0], point[1]))),
-          material: color.withAlpha(chosen ? 0.2 : 0.07),
+          material: color.withAlpha(chosen ? 0.2 : hasSourceFootprint ? 0.07 : 0.025),
           height: 300,
           outline: false,
         },
         polyline: {
           positions,
-          width: chosen ? 3 : 1.6,
-          material: color.withAlpha(0.95),
+          width: chosen ? 3 : hasSourceFootprint ? 1.6 : 1.1,
+          material: color.withAlpha(chosen ? 0.98 : hasSourceFootprint ? 0.95 : 0.58),
           arcType: ArcType.GEODESIC,
         },
       });
