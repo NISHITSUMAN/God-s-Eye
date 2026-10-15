@@ -1,24 +1,63 @@
-# Pixel Perfect Implementation
+# Third Eye
 
-Implement exactly the screenshot and nothing else
+Third Eye is an Earth-observation exploration prototype. It combines an interactive 3D Earth (CesiumJS/Resium), a 2D map (MapLibre), sample environmental events and observations, timeline controls, area-of-interest analysis flows, and a frontend command simulator.
 
-This project was built with [Lovable](https://lovable.dev).
+> **Data honesty:** event points, polygons, observation metadata, measurements, analysis results, and tracks in this repository are illustrative sample data. They are not live NASA/NISAR measurements. The basemap is separate from scientific datasets.
 
-## Build with Lovable
+## Requirements
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/5e348b37-37ae-4d66-b335-74322d4fae12).
+- Node.js compatible with the versions supported by Vite 8 and the project dependencies.
+- Bun is recommended because the repository includes `bun.lock`. npm can also be used with `package.json`.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Run locally
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+git clone https://github.com/NISHITSUMAN/God-s-Eye.git
+cd God-s-Eye
+bun install
+bun run dev
+```
+
+Or with npm:
+
+```sh
+npm install
 npm run dev
 ```
+
+Useful checks:
+
+```sh
+bun run test
+bun run lint
+bun run build
+```
+
+## Earth imagery and terrain
+
+The 3D globe no longer relies on the bundled low-resolution Natural Earth II texture as its only imagery source.
+
+- Default fallback: OpenStreetMap standard raster tiles. This is a street/map basemap, not satellite imagery. Respect the provider's usage policy and keep attribution visible.
+- Recommended higher-detail option: configure a suitable multi-resolution XYZ imagery provider using `VITE_EARTH_IMAGERY_URL` and `VITE_EARTH_IMAGERY_ATTRIBUTION`. Use a provider whose terms allow your use and which supports the desired zoom levels. Use only credentials intended for browser use.
+- Optional Cesium ion imagery: set `VITE_CESIUM_ION_TOKEN`. Optionally set `VITE_CESIUM_ION_IMAGERY_ASSET_ID` to the ID of an imagery asset available to your account. Verify the asset's license, attribution and quota.
+- Optional terrain: set `VITE_CESIUM_TERRAIN=true` with a valid Cesium ion token and terrain access. If it fails, the globe stays on ellipsoid terrain.
+
+Example local `.env.local` (do not commit real secrets):
+
+```dotenv
+VITE_CESIUM_ION_TOKEN=
+VITE_CESIUM_ION_IMAGERY_ASSET_ID=2
+VITE_CESIUM_TERRAIN=false
+VITE_EARTH_IMAGERY_URL=
+VITE_EARTH_IMAGERY_ATTRIBUTION=
+```
+
+The `VITE_` values are exposed to the browser bundle. Only put public/client-scoped tokens here, restrict them with provider-side URL/domain settings, and never put server secrets in client environment variables.
+
+## Current limitations
+
+- Scientific event and observation layers are sample-only.
+- The command/AI experience is a frontend simulator; it does not call a real LLM or tool-calling backend.
+- Analysis results are sample placeholders, not processed NISAR rasters or scientific estimates.
+- A sharper basemap does not supply NISAR data. Real products need a separate data ingestion, processing, provenance and visualization pipeline.
+- Browser/WebGL testing and real provider credentials are needed to verify the exact imagery quality available in your environment.
