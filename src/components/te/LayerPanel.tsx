@@ -122,8 +122,8 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
             </div>
           </Section>
         ) : (
-          <Section title="Phenomena">
-            {PHENOMENA.map((p) => <Row key={p.id} id={p.id} label={p.label} swatch={p.color} />)}
+          <Section title="Sample phenomena (demo only)">
+            {PHENOMENA.map((p) => <Row key={p.id} id={p.id} label={p.label} swatch={p.color} tag="SAMPLE" />)}
           </Section>
         )}
         <Section title="Live data sources">
