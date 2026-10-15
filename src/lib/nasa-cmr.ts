@@ -371,6 +371,8 @@ export async function searchNISARGranules(options: {
 
 export interface NISARCoverageResult {
   collections: NISARCollection[];
+  collectionHits: number;
+  productCollections: NISARCollection[];
   granules: NISARGranule[];
   granuleHits: number;
   warnings: string[];
@@ -435,5 +437,12 @@ export async function searchNISARCoverage(options: {
   });
 
   granules.sort((a, b) => (Date.parse(b.startDate || "") || 0) - (Date.parse(a.startDate || "") || 0));
-  return { collections: selected, granules, granuleHits, warnings };
+  return {
+    collections: catalog.collections,
+    collectionHits: catalog.hits,
+    productCollections: selected,
+    granules,
+    granuleHits,
+    warnings,
+  };
 }
