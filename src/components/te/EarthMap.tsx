@@ -22,7 +22,7 @@ export default function EarthMap() {
       if (state.filter.types && !state.filter.types.includes(event.type)) return false;
       if (state.filter.region && !`${event.region} ${event.country}`.toLowerCase().includes(state.filter.region.toLowerCase())) return false;
       const day = event.date.slice(0, 10);
-      return day >= state.time.start && day <= state.time.end;
+      return day >= state.time.start && day <= state.time.end && day <= state.time.current;
     }).map(event => ({
       type: "Feature" as const,
       properties: {
