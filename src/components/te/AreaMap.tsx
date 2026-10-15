@@ -20,6 +20,8 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
   const toolRef = useRef(tool);
   const probeRef = useRef<((index: number) => void) | null>(null);
   const aoi = useApp(state => state.aoi);
+  const layers = useApp(state => state.layers);
+  const time = useApp(state => state.time);
   const nisarGranules = useApp(state => state.nisarGranules);
   const [ready, setReady] = useState(false);
   const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
@@ -107,6 +109,7 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
         window.clearTimeout(timer);
         setMapStatus(index === 0 ? "ready" : "fallback");
         setMapError(null);
+        if (index > 0) window.setTimeout(() => { if (!cancelled) setMapStatus(status => status === "fallback" ? "ready" : status); }, 2500);
       };
       image.onerror = () => {
         if (settled || cancelled || activeIndex !== index) return;
@@ -254,7 +257,7 @@ export default function AreaMap({ tool }: { tool: DrawTool | null }) {
       }];
     });
     (map.getSource("nisar-coverage") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: dayFeatures });
-  }, [ready, nisarGranules]);
+  }, [ready, nisarGranules, layers, time]);
 
   const retryMap = () => {
     const map = mapRef.current;
