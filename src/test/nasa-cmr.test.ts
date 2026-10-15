@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchNISARCollections, searchNISARGranules } from "../lib/nasa-cmr";
+import { searchNISARCollections, searchNISARGranules, searchNISARCoverage } from "../lib/nasa-cmr";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -69,6 +69,17 @@ describe("NASA CMR metadata adapter", () => {
           GranuleUR: "NISAR_L2_GCOV_SAMPLE",
           TemporalExtent: { RangeDateTime: { BeginningDateTime: "2026-09-10T12:00:00Z", EndingDateTime: "2026-09-10T12:01:00Z" } },
           DataCenters: [{ ShortName: "ASF" }],
+          SpatialExtent: {
+            HorizontalSpatialDomain: {
+              Geometry: {
+                BoundingRectangles: [{ WestBoundingCoordinate: 71, SouthBoundingCoordinate: 19, EastBoundingCoordinate: 73, NorthBoundingCoordinate: 21 }],
+              },
+            },
+          },
+          RelatedUrls: [
+            { Type: "GET RELATED VISUALIZATION", URLContentType: "Visualization", URL: "https://browse.example.org/granule.png" },
+            { Type: "GET DATA", URLContentType: "DistributionURL", URL: "https://data.example.org/granule.h5" },
+          ],
         },
       }],
     });
@@ -88,6 +99,10 @@ describe("NASA CMR metadata adapter", () => {
       granuleId: "NISAR_L2_GCOV_SAMPLE",
       startDate: "2026-09-10T12:00:00Z",
       producer: "ASF",
+      productCode: "GCOV",
+      bounds: { west: 71, south: 19, east: 73, north: 21 },
+      browseUrl: "https://browse.example.org/granule.png",
+      dataUrl: "https://data.example.org/granule.h5",
     });
     const requested = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(requested.pathname).toContain("/granules.umm_json");
@@ -95,6 +110,54 @@ describe("NASA CMR metadata adapter", () => {
     expect(requested.searchParams.get("bounding_box")).toBe("70,18,74,22");
     expect(requested.searchParams.get("temporal[]")).toBe("2026-09-01T00:00:00Z,2026-09-30T23:59:59Z");
     expect(requested.searchParams.get("page_size")).toBe("12");
+    expect(requested.searchParams.get("browsable")).toBe("true");
+  });
+
+  it("discovers real product-family collections and combines matching browsable granules", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({
+          hits: 2,
+          items: [
+            { meta: { "concept-id": "C100-ASF", "revision-date": "2026-10-01T00:00:00Z" }, umm: { ShortName: "NISAR_L2_GCOV_PROVISIONAL_V1", EntryTitle: "NISAR GCOV", Version: "1", Abstract: "" } },
+            { meta: { "concept-id": "C200-ASF", "revision-date": "2026-10-01T00:00:00Z" }, umm: { ShortName: "NISAR_L2_GSLC_PROVISIONAL_V1", EntryTitle: "NISAR GSLC", Version: "1", Abstract: "" } },
+          ],
+        }),
+      })
+      .mockResolvedValue({
+        ok: true, status: 200, json: async () => ({
+          hits: 1,
+          items: [{
+            meta: { "concept-id": "G100-ASF", "native-id": "granule-1" },
+            umm: {
+              GranuleUR: "NISAR_TEST_GRANULE",
+              TemporalExtent: { RangeDateTime: { BeginningDateTime: "2026-09-10T12:00:00Z", EndingDateTime: "2026-09-10T12:01:00Z" } },
+              SpatialExtent: { HorizontalSpatialDomain: { Geometry: { BoundingRectangles: [{ WestBoundingCoordinate: 71, SouthBoundingCoordinate: 19, EastBoundingCoordinate: 73, NorthBoundingCoordinate: 21 }] } } },
+              RelatedUrls: [{ Type: "GET RELATED VISUALIZATION", URLContentType: "Visualization", URL: "https://browse.example.org/granule.png" }],
+            },
+          }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchNISARCoverage({
+      bounds: { west: 70, south: 18, east: 74, north: 22 },
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+    });
+
+    expect(result.productCollections.map(item => item.shortName)).toEqual([
+      "NISAR_L2_GCOV_PROVISIONAL_V1",
+      "NISAR_L2_GSLC_PROVISIONAL_V1",
+    ]);
+    expect(result.collections).toHaveLength(2);
+    expect(result.granules).toHaveLength(2);
+    expect(result.granules[0]).toMatchObject({
+      productCode: "GCOV",
+      bounds: { west: 71, south: 19, east: 73, north: 21 },
+      browseUrl: "https://browse.example.org/granule.png",
+    });
+    expect(new URL(String(fetchMock.mock.calls[1]?.[0])).searchParams.get("browsable")).toBe("true");
   });
 
   it("rejects malformed IDs, dates, and bounds before making a request", async () => {
