@@ -45,6 +45,24 @@ export function rectangleAOI(a: Position, b: Position) {
   }, "Rectangle AOI");
 }
 
+export function distanceKm(a: Position, b: Position): number {
+  const [lngA, latA] = a;
+  const [lngB, latB] = b;
+  if (![lngA, latA, lngB, latB].every(Number.isFinite)
+    || Math.abs(lngA!) > 180 || Math.abs(lngB!) > 180
+    || Math.abs(latA!) > 90 || Math.abs(latB!) > 90) {
+    throw new Error("Distance coordinates must be valid longitude and latitude values.");
+  }
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const phiA = radians(latA!);
+  const phiB = radians(latB!);
+  const deltaPhi = radians(latB! - latA!);
+  const deltaLambda = radians(lngB! - lngA!);
+  const h = Math.sin(deltaPhi / 2) ** 2
+    + Math.cos(phiA) * Math.cos(phiB) * Math.sin(deltaLambda / 2) ** 2;
+  return 6371.0088 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+}
+
 export function circleAOI(center: Position, radiusKm: number) {
   if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 20000) {
     throw new Error("Circle radius must be greater than 0 and no more than 20,000 km.");
