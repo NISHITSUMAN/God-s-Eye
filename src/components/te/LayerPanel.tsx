@@ -22,7 +22,7 @@ function Row({ id, label, swatch, demo, tag }: { id: string; label: string; swat
           {tag && <span className={cn("font-mono text-[9px] tracking-wider", tag === "LIVE" ? "text-ok" : "text-subtle")}>{tag}</span>}
           {demo && <span className="font-mono text-[9px] tracking-wider text-subtle">DEMO</span>}
         </button>
-        <button onClick={() => setOpen(!open)} className="opacity-0 group-hover:opacity-100" aria-label="Layer settings"><SlidersHorizontal className="size-3.5 text-subtle" /></button>
+        <button onClick={() => setOpen(!open)} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100" aria-label="Layer settings"><SlidersHorizontal className="size-3.5 text-subtle" /></button>
         <button onClick={() => toggle(id)} aria-label="Toggle visibility">{on ? <Eye className="size-3.5 text-muted-foreground" /> : <EyeOff className="size-3.5 text-subtle" />}</button>
       </div>
       {open && (
@@ -76,8 +76,8 @@ export function LayerPanel() {
       </div>
       <div className="scroll-thin flex-1 space-y-1 overflow-y-auto px-1.5 pb-2">
         <Section title="Satellite">
-          <Row id="nisar-footprints" label="NISAR Observation Footprints" />
-          <Row id="nisar-tracks" label="Acquisition Tracks" demo />
+          <Row id="nisar-footprints" label="Sample Observation Footprints" tag="SAMPLE" />
+          <Row id="nisar-tracks" label="Sample Acquisition Tracks" tag="SAMPLE" />
         </Section>
         {mode === "science" ? (
           <Section title="NISAR Products">
