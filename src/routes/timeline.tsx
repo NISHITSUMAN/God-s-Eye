@@ -8,13 +8,13 @@ export const Route = createFileRoute("/timeline")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "Timeline — Third Eye" },
-      { name: "description", content: "A chronological view of observations and events through 2026." },
+      { name: "description", content: "A time-filtered chronology of real NISAR acquisition records, public events and separate sample candidates." },
       { property: "og:title", content: "Timeline — Third Eye" },
       { property: "og:description", content: "A chronological view of observations and events through 2026." },
     ],
   }),
   component: () => (
-    <PageShell eyebrow="TIMELINE" title="2026 chronology" intro="Observations and candidate events in time order.">
+    <PageShell eyebrow="TIMELINE" title="Historical chronology" intro="Review acquisitions and events from the selected historical time window; future dates are excluded.">
       <TimelineBody />
     </PageShell>
   ),
