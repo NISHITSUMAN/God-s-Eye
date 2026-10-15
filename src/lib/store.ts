@@ -212,7 +212,7 @@ export const useApp = create<AppState>((set) => ({
   earthMode: "3d",
   lod: "global",
   advanced: false,
-  layers: new Set(["nisar-footprints", "nisar-tracks", "nisar-coverage", "prod-GCOV", "prod-GSLC", "prod-GUNW", "prod-SME2", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
+  layers: new Set(["nisar-coverage", "prod-GCOV", "prod-GSLC", "prod-GUNW", "prod-SME2", "live-usgs", "live-eonet"]),
   opacity: {},
   selectedId: null,
   hoveredId: null,
