@@ -21,7 +21,7 @@ export function CommandBar() {
   const submit = (t: string) => { if (!t.trim() || steps) return; setV(""); void runCommand(t); };
   const runAction = (action: string) => {
     if (action.startsWith("navigate:")) {
-      const destination = action.slice("navigate:".length) as "/" | "/reports/create" | "/analyze" | "/data" | "/observations" | "/events" | "/discover" | "/methodology" | "/learn";
+      const destination = action.slice("navigate:".length) as "/" | "/reports/create" | "/analyze" | "/data" | "/datasets" | "/observations" | "/events" | "/discover" | "/methodology" | "/learn";
       void navigate({ to: destination as never });
       setActive(false);
       return;
