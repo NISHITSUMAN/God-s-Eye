@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
 import { phenomenonColor } from "@/lib/mock-data";
+import type { NISARGranule } from "@/lib/nasa-cmr";
 
 type MapStatus = "loading" | "ready" | "fallback" | "error";
 
@@ -55,6 +56,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
   const nonce = useApp(s => s.viewNonce);
   const opacity = useApp(s => s.opacity);
   const liveEvents = useApp(s => s.liveEvents);
+  const nisarGranules = useApp(s => s.nisarGranules);
 
   const update = () => {
     const map = mapRef.current;
@@ -119,6 +121,36 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
     (map.getSource("live-events") as maplibregl.GeoJSONSource | undefined)?.setData({
       type: "FeatureCollection",
       features: liveFeatures,
+    });
+
+    const nisarFeatures = state.nisarGranules.flatMap((granule) => {
+      if (!state.layers.has("nisar-coverage") || !granule.bounds) return [];
+      const day = (granule.startDate || "").slice(0, 10);
+      if (day && (day < state.time.start || day > state.time.end || day > state.time.current)) return [];
+      const coordinates = granule.footprint && granule.footprint.length >= 3
+        ? [...granule.footprint, granule.footprint[0]!].map(point => [point[0], point[1]])
+        : [
+            [granule.bounds.west, granule.bounds.south],
+            [granule.bounds.east, granule.bounds.south],
+            [granule.bounds.east, granule.bounds.north],
+            [granule.bounds.west, granule.bounds.north],
+            [granule.bounds.west, granule.bounds.south],
+          ];
+      return [{
+        type: "Feature" as const,
+        properties: {
+          id: granule.id,
+          title: granule.granuleId,
+          productCode: granule.productCode,
+          date: day,
+          browseUrl: granule.browseUrl || "",
+        },
+        geometry: { type: "Polygon" as const, coordinates: [coordinates] },
+      }];
+    });
+    (map.getSource("nisar-coverage") as maplibregl.GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: nisarFeatures,
     });
   };
 
@@ -249,6 +281,40 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       map.addSource("events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("footprints", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("live-events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource("nisar-coverage", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource("india-admin", { type: "geojson", data: "/data/jammu-kashmir-ladakh.geojson" });
+      map.addLayer({
+        id: "india-admin-fill",
+        type: "fill",
+        source: "india-admin",
+        paint: { "fill-color": "#FF9933", "fill-opacity": 0.12 },
+      });
+      map.addLayer({
+        id: "india-admin-outline",
+        type: "line",
+        source: "india-admin",
+        paint: {
+          "line-color": "#FF9933",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.6, 7, 3.2, 10, 4],
+          "line-opacity": 0.98,
+        },
+      });
+      map.addLayer({
+        id: "nisar-coverage-fill",
+        type: "fill",
+        source: "nisar-coverage",
+        paint: { "fill-color": "#2EC4FF", "fill-opacity": 0.1 },
+      });
+      map.addLayer({
+        id: "nisar-coverage-outline",
+        type: "line",
+        source: "nisar-coverage",
+        paint: {
+          "line-color": "#2EC4FF",
+          "line-width": ["case", ["get", "selected"], 3, 1.2],
+          "line-opacity": 0.92,
+        },
+      });
       map.addLayer({
         id: "footprint-fill",
         type: "fill",
@@ -303,11 +369,40 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
         const id = event.features?.[0]?.properties?.["id"];
         if (typeof id === "string") useApp.getState().select(id);
       });
+      map.on("click", "nisar-coverage-fill", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
+      map.on("click", "nisar-coverage-outline", event => {
+        const id = event.features?.[0]?.properties?.["id"];
+        if (typeof id === "string") useApp.getState().select(id);
+      });
+      map.on("mouseenter", "nisar-coverage-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "nisar-coverage-fill", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "live-event-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "live-event-points", () => { map.getCanvas().style.cursor = "grab"; });
       map.on("mouseenter", "event-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "event-points", () => { map.getCanvas().style.cursor = "grab"; });
       probeBasemap(activeBasemapRef.current);
+
+      // Labels make the Indian official boundary depiction explicit at Kashmir-level zoom.
+      const indiaLabels = [
+        { text: "JAMMU & KASHMIR · INDIA", lng: 74.95, lat: 34.0 },
+        { text: "LADAKH · INDIA", lng: 78.0, lat: 34.6 },
+      ];
+      indiaLabels.forEach(({ text, lng, lat }) => {
+        const element = document.createElement("div");
+        element.className = "india-boundary-label";
+        element.textContent = text;
+        const marker = new maplibregl.Marker({ element, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
+        const updateVisibility = () => {
+          element.style.display = map.getZoom() >= 3.8 ? "block" : "none";
+        };
+        map.on("zoom", updateVisibility);
+        updateVisibility();
+        // The map owns the DOM marker lifetime; on teardown MapLibre removes it.
+        void marker;
+      });
     });
 
     map.on("moveend", () => {
@@ -327,7 +422,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
     };
   }, []);
 
-  useEffect(update, [layers, filter, time, lod, selected, opacity, liveEvents]);
+  useEffect(update, [layers, filter, time, lod, selected, opacity, liveEvents, nisarGranules]);
 
   useEffect(() => {
     const view = useApp.getState().view;
