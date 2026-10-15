@@ -467,7 +467,7 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
           <button type="button" onClick={retryBasemap}>RETRY MAP</button>
         </div>
       )}
-      <div className="earth-attribution">Public USGS/NASA historical context · NISAR science overlays are sample-only</div>
+      <div className="earth-attribution">NISAR coverage: NASA CMR / ASF · J&amp;K / Ladakh boundary: India-aligned open dataset · Sample candidates remain illustrative</div>
     </div>
   );
 }
