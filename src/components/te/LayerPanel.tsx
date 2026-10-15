@@ -66,7 +66,6 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
   const nisarGranules = useApp((s) => s.nisarGranules);
   const nisarGranuleHits = useApp((s) => s.nisarGranuleHits);
   const nisarCollections = useApp((s) => s.nisarCollections);
-  const nisarSelectedProducts = useApp((s) => s.nisarSelectedProductCodes);
   const refreshNISARData = useApp((s) => s.refreshNISARData);
 
   const changeProduct = (product: string, enabled: boolean) => {
@@ -96,7 +95,7 @@ export function LayerPanel({ onCollapse }: { onCollapse?: () => void } = {}) {
       </div>
       <div className="scroll-thin flex-1 space-y-1 overflow-y-auto px-1.5 pb-2">
         <Section title="Satellite">
-          <Row id="nisar-coverage" label="Real NISAR product coverage" swatch="#2EC4FF" tag="LIVE" disabled={nisarStatus === "loading"} />
+          <Row id="nisar-coverage" label="Real NISAR product coverage" swatch="#2EC4FF" tag="LIVE" />
           <Row id="nisar-footprints" label="Sample Observation Footprints" tag="SAMPLE" />
           <Row id="nisar-tracks" label="Sample Acquisition Tracks" tag="SAMPLE" />
         </Section>
