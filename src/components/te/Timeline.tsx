@@ -7,6 +7,7 @@ import { sampleDataProvider } from "@/lib/earth-data";
 export function Timeline() {
   const time = useApp(s => s.time); const playing = useApp(s => s.playing); const speed = useApp(s => s.playbackSpeed); const comparison = useApp(s => s.investigation.comparison);
   const liveEvents = useApp(s => s.liveEvents);
+  const nisarGranules = useApp(s => s.nisarGranules);
   const layers = useApp(s => s.layers);
   const setDate = useApp(s => s.setCurrentDate); const setRange = useApp(s => s.setTimeRange); const setPlaying = useApp(s => s.setPlaying);
   const start = Date.parse(time.start); const end = Date.parse(time.end); const current = Date.parse(time.current);
@@ -18,6 +19,12 @@ export function Timeline() {
     ...liveEvents
       .filter((event) => layers.has(event.layerId) && event.date.slice(0, 10) >= time.start && event.date.slice(0, 10) <= time.end && event.date.slice(0, 10) <= time.current)
       .map((event) => ({ id: event.id, title: event.title, date: event.date.slice(0, 10), label: event.type, source: event.source })),
+    ...nisarGranules
+      .filter((granule) => {
+        const day = (granule.startDate || "").slice(0, 10);
+        return layers.has("nisar-coverage") && layers.has(`prod-${granule.productCode}`) && day >= time.start && day <= time.end && day <= time.current;
+      })
+      .map((granule) => ({ id: granule.id, title: granule.granuleId, date: (granule.startDate || "").slice(0, 10), label: granule.productCode, source: "NISAR" as const })),
   ].sort((a, b) => a.date.localeCompare(b.date));
   // Keep the mobile timeline light while sampling entries evenly across the full history.
   const stride = Math.max(1, Math.ceil(entries.length / 160));
@@ -33,7 +40,7 @@ export function Timeline() {
       <span className="font-mono text-[10px] text-primary">{time.current}</span>
       <Button variant={comparison ? "secondary" : "ghost"} size="icon" title="Before / after comparison" aria-label="Before after comparison" aria-pressed={Boolean(comparison)} onClick={() => useApp.getState().setInvestigation({ comparison: comparison ? null : "before-after" })}><Columns2 /></Button>
     </div>
-    <div className="timeline-entries flex gap-1 overflow-x-auto border-t border-border pt-1">{displayedEntries.map((entry) => <Button key={entry.id} variant="ghost" className={`h-6 shrink-0 px-2 font-mono text-[9px] ${entry.source === "SAMPLE" ? "text-muted-foreground" : "text-ok"}`} title={`${entry.title} · ${entry.date} · ${entry.source}`} onClick={() => useApp.getState().select(entry.id)}>{entry.date.slice(5)} · {entry.label} · {entry.source}</Button>)}
+    <div className="timeline-entries flex gap-1 overflow-x-auto border-t border-border pt-1">{displayedEntries.map((entry) => <Button key={entry.id} variant="ghost" className={`h-6 shrink-0 px-2 font-mono text-[9px] ${entry.source === "SAMPLE" ? "text-muted-foreground" : entry.source === "NISAR" ? "text-primary" : "text-ok"}`} title={`${entry.title} · ${entry.date} · ${entry.source}`} onClick={() => useApp.getState().select(entry.id)}>{entry.date.slice(5)} · {entry.label} · {entry.source}</Button>)}
       {entries.length === 0 && <span className="px-2 py-2 text-[10px] text-subtle">No events on or before this date. Live history loads automatically; sample NISAR overlays are illustrative.</span>}</div>
   </div>;
 }
