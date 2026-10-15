@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Sidebar } from "@/components/te/Sidebar";
+import { useApp } from "@/lib/store";
 
 
 function NotFoundComponent() {
@@ -81,10 +82,18 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function LiveDataBootstrap() {
+  useEffect(() => {
+    void useApp.getState().refreshLiveData();
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
+      <LiveDataBootstrap />
       <div className="app-frame flex h-dvh w-screen overflow-hidden bg-background">
         <Sidebar />
         <main className="root-main relative min-w-0 flex-1"><Outlet /></main>
