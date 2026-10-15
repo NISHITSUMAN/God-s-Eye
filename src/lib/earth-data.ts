@@ -94,6 +94,8 @@ export const DATASETS = [
   { id: "FIRMS", group: "SUPPORTING", name: "FIRMS thermal anomalies", availability: "NOT CONNECTED", description: "Thermal hotspot evidence source." },
   { id: "LANDSAT", group: "SUPPORTING", name: "Landsat optical imagery", availability: "NOT CONNECTED", description: "Optical context and vegetation indices." },
   { id: "DEM", group: "SUPPORTING", name: "Elevation and slope", availability: "SAMPLE CONTEXT", description: "Terrain context for interpretation." },
+  { id: "USGS-EQ", group: "SUPPORTING", name: "USGS Earthquake Feed", availability: "LIVE CONTEXT FEED", description: "Public GeoJSON reports for earthquakes over the past 24 hours. Context only; not a NISAR product." },
+  { id: "NASA-EONET", group: "SUPPORTING", name: "NASA EONET Open Events", availability: "LIVE CONTEXT FEED", description: "Public open wildfires, floods, landslides and volcanic events. Context only; not a NISAR product." },
 ] as const;
 
 export interface EarthDataProvider {
