@@ -14,6 +14,7 @@ import {
   ScreenSpaceEventType,
   ArcType,
   JulianDate,
+  LabelStyle,
   UrlTemplateImageryProvider,
   TileMapServiceImageryProvider,
   ArcGisMapServerImageryProvider,
@@ -252,6 +253,25 @@ export default function EarthGlobe() {
         const name = entity.properties?.name?.getValue(JulianDate.now());
         if (typeof name === "string") entity.name = `${name} · India official boundary representation`;
       }
+      const boundaryLabel = (id: string, text: string, longitude: number, latitude: number) => boundary.entities.add({
+        id,
+        name: text,
+        position: Cartesian3.fromDegrees(longitude, latitude, 50000),
+        label: {
+          text,
+          font: "bold 13px sans-serif",
+          fillColor: Color.fromCssColorString("#FFE2BD"),
+          outlineColor: Color.BLACK,
+          outlineWidth: 3,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          showBackground: true,
+          backgroundColor: Color.fromCssColorString("#05121B").withAlpha(0.88),
+          pixelOffset: new Cartesian2(0, -12),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      boundaryLabel("india-jammu-kashmir-label", "JAMMU & KASHMIR · INDIA", 74.95, 34.0);
+      boundaryLabel("india-ladakh-label", "LADAKH · INDIA", 78.0, 34.6);
       await viewer.dataSources.add(boundary);
       viewer.scene.requestRender();
     }).catch((boundaryError) => {
@@ -453,6 +473,6 @@ export default function EarthGlobe() {
         <button type="button" className="rounded border border-border px-3 py-1.5 text-[11px] hover:bg-elevated" onClick={() => useApp.getState().setEarthMode("2d")}>OPEN 2D MAP</button>
       </div>
     </div>}
-    <div className="earth-attribution">{imageryLabel} · sample scientific overlays</div>
+    <div className="earth-attribution">{imageryLabel} · NASA CMR / ASF footprints · India-aligned Kashmir boundary · sample candidates labelled separately</div>
   </div>;
 }
