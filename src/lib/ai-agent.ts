@@ -34,6 +34,37 @@ export async function runCommand(raw: string) {
   const loc = LOCATIONS.find((l) => q.includes(l.name.toLowerCase()));
   const regionWord = loc?.name ?? null;
 
+  if (/\\b(dataset|datasets|product code|available products|list products|gcov|gunw|gslc|goff|sme2|rslc|rifg|runw|roff)\\b/.test(q)) {
+    const matching = DATASETS.filter(dataset =>
+      q.includes(dataset.id.toLowerCase()) || q.includes(dataset.name.toLowerCase()) ||
+      /\\b(dataset|datasets|available products|list products)\\b/.test(q)
+    );
+    if (matching.length) {
+      const summary = matching.map(dataset => `${dataset.name} — ${dataset.availability.toLowerCase()}`).join("; ");
+      return reply(`Dataset catalog: ${summary}. Product descriptions and availability are catalog metadata; no radar products are connected in this build.`, [{ label: "Open data catalog", run: "navigate:/data" }]);
+    }
+  }
+
+  if (/\\b(metadata|acquisition|observation details|product details)\\b/.test(q)) {
+    const state = useApp.getState();
+    const selectedEvent = sampleDataProvider.events().find(event =>
+      event.id === state.selectedId ||
+      q.includes(event.id.toLowerCase()) ||
+      q.includes(event.observationId.toLowerCase()) ||
+      q.includes(event.title.toLowerCase())
+    );
+    const observation = sampleDataProvider.observations().find(item =>
+      q.includes(item.id.toLowerCase()) || item.id === selectedEvent?.observationId
+    );
+    if (observation) {
+      return reply(`Sample observation ${observation.id}: ${observation.product}, ${observation.date}, ${observation.region}, ${observation.band}, ${observation.polarization}, ${observation.resolution}. Status: ${observation.status}. This is illustrative catalog metadata, not a retrieved NISAR acquisition.`);
+    }
+    if (selectedEvent) {
+      return reply(`Sample candidate ${selectedEvent.id}: ${selectedEvent.title}, ${selectedEvent.region}, ${selectedEvent.date}; severity ${selectedEvent.severity}; confidence ${selectedEvent.confidence}. Interpretation: ${selectedEvent.interpretation} This record and its geometry are illustrative, not a verified event.`);
+    }
+    return reply("Select an event or provide an observation ID to inspect its sample metadata. No live metadata service is connected.");
+  }
+
   // "biggest / strongest one" → refers to current results
   if (/(biggest|largest|strongest|most severe)/.test(q)) {
     await runSteps("RANKING CURRENT RESULTS", ["Reading current investigation", "Ranking by severity", "Focusing globe"]);
@@ -53,29 +84,29 @@ export async function runCommand(raw: string) {
 
   if (/report/.test(q)) {
     await runSteps("PREPARING REPORT", ["Collecting selection", "Assembling evidence", "Formatting summary"]);
-    return reply("A draft report is ready for the current investigation. Export will be available once the reporting service is connected.", [{ label: "View results", run: "noop" }]);
+    return reply("The report builder can create a clearly marked sample PDF for the current investigation. It will not contain processed NISAR measurements because no scientific data service is connected.", [{ label: "Open report builder", run: "navigate:/reports/create" }]);
   }
 
   if (/compare|last year|before|after/.test(q)) {
-    await runSteps("COMPARING PERIODS", ["Identifying reference period", "Searching NISAR observations", "Differencing acquisitions", "Preparing result"]);
-    return reply("Comparison staged with the equivalent period from last year. Use the timeline handles to scrub between acquisitions. (Demo data)");
+    await runSteps("STAGING A SAMPLE COMPARISON", ["Reading the current time range", "Keeping the current investigation context", "Preparing comparison controls"]);
+    useApp.getState().setInvestigation({ comparison: "before-after" });
+    return reply("Before/after comparison mode is enabled, but no image differencing has been run. The timeline and sample overlays are for interface demonstration only.");
   }
 
   if (type || loc) {
     const st = useApp.getState();
     const prevTypes = st.filter.types;
     const types = type ? [type] : prevTypes;
-    const region = regionWord ?? (/(only|just)/.test(q) ? st.filter.region : st.filter.region);
+    const region = regionWord ?? st.filter.region;
     await runSteps(`ANALYZING ${(regionWord ?? "EARTH").toUpperCase()}`, [
       loc ? "Location identified" : "Global scope",
-      "NISAR observations found",
-      type ? `Applying ${phenomenonLabel(type)} layer` : "Keeping current layers",
-      "Cross-checking supporting data",
-      "Preparing result",
+      "Filtering illustrative sample records",
+      type ? `Enabling the ${phenomenonLabel(type)} layer` : "Keeping current layers",
+      "Preserving source and uncertainty labels",
+      "Updating the map and investigation context",
     ]);
     if (type) useApp.getState().toggleLayer(type, true);
     useApp.getState().setFilter({ types: types ?? null, region: region && region !== "India" ? region : region });
-    useApp.getState().setMonth(11);
     if (loc) useApp.getState().flyTo({ lat: loc.lat, lng: loc.lng, altitude: loc.kind === "Country" ? 1.1 : 0.7 });
     const n = visibleEvents(useApp.getState()).length;
     const label = types ? types.map(phenomenonLabel).join(", ").toLowerCase() : "change";
@@ -85,6 +116,16 @@ export async function runCommand(raw: string) {
         : `No ${label} candidates found${region ? ` in ${region}` : ""} in the demo dataset.`,
       [{ label: "Show the biggest", run: "Show the biggest one" }, { label: "Clear filter", run: "clear" }],
     );
+  }
+
+  if (/\\b(analy[sz]e|run analysis|draw an area|area of interest|aoi)\\b/.test(q)) {
+    return reply(`The analysis workspace supports area selection and a sample workflow. Available analysis methods include: ${ANALYSIS_CATALOG.slice(0, 8).join(", ")}. Results remain sample-only until real processing is connected.`, [{ label: "Open analysis workspace", run: "navigate:/analyze" }]);
+  }
+
+  if (/\\b(open|go to|show)\\s+(the\\s+)?(observations|events|datasets|data catalog|discover|methodology|learn)\\b/.test(q)) {
+    const term = q.match(/\\b(observations|events|datasets|data catalog|discover|methodology|learn)\\b/)?.[1];
+    const route = term === "observations" ? "/observations" : term === "events" ? "/events" : term === "datasets" || term === "data catalog" ? "/data" : `/${term}`;
+    return reply(`Opening the ${term} section.`, [{ label: "Open section", run: `navigate:${route}` }]);
   }
 
   if (/clear|reset|all/.test(q)) {
