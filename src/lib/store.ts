@@ -3,6 +3,7 @@ import { EARTH_EVENTS, confidenceRank, lodForAltitude, severityBand, type EarthE
 import type { AOI, AnalysisResult } from "./analysis";
 import type { Phenomenon } from "./mock-data";
 import { fetchLiveEarthData, type LiveEarthEvent } from "./live-data";
+import { searchNISARCoverage, type NISARCollection, type NISARGranule } from "./nasa-cmr";
 
 export type Mode = "science" | "intelligence";
 export interface View { lat: number; lng: number; altitude: number }
@@ -33,6 +34,13 @@ export interface AppState {
   liveDataUpdatedAt: string | null;
   liveDataError: string | null;
   refreshLiveData: () => Promise<void>;
+  nisarCollections: NISARCollection[];
+  nisarGranules: NISARGranule[];
+  nisarGranuleHits: number;
+  nisarStatus: "idle" | "loading" | "ready" | "partial" | "error";
+  nisarUpdatedAt: string | null;
+  nisarError: string | null;
+  refreshNISARData: () => Promise<void>;
   setAOI: (aoi: AOI | null) => void;
   addAnalysis: (result: AnalysisResult) => void;
   sidebarCollapsed: boolean;
@@ -134,6 +142,42 @@ export const useApp = create<AppState>((set) => ({
       }));
     }
   },
+  nisarCollections: [],
+  nisarGranules: [],
+  nisarGranuleHits: 0,
+  nisarStatus: "idle",
+  nisarUpdatedAt: null,
+  nisarError: null,
+  refreshNISARData: async () => {
+    if (useApp.getState().nisarStatus === "loading") return;
+    set({ nisarStatus: "loading", nisarError: null });
+    const snapshot = useApp.getState();
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const todayKey = dateKey(today);
+    const endDate = snapshot.time.end > todayKey ? todayKey : snapshot.time.end;
+    const startDate = snapshot.time.start > endDate ? endDate : snapshot.time.start;
+    const aoiBounds = snapshot.aoi?.bounds;
+    const bounds = aoiBounds && aoiBounds.length === 4 && aoiBounds.every(Number.isFinite)
+      ? { west: aoiBounds[0]!, south: aoiBounds[1]!, east: aoiBounds[2]!, north: aoiBounds[3]! }
+      : { west: 68, south: 6, east: 98, north: 38 };
+    try {
+      const result = await searchNISARCoverage({ bounds, startDate, endDate });
+      set({
+        nisarCollections: result.collections,
+        nisarGranules: result.granules,
+        nisarGranuleHits: result.granuleHits,
+        nisarStatus: result.warnings.length ? "partial" : "ready",
+        nisarUpdatedAt: new Date().toISOString(),
+        nisarError: result.warnings.length ? result.warnings.join(" ") : null,
+      });
+    } catch (error) {
+      set((state) => ({
+        nisarStatus: state.nisarGranules.length ? "partial" : "error",
+        nisarError: error instanceof Error ? error.message : "Real NISAR catalog search failed.",
+      }));
+    }
+  },
   setAOI: (aoi) => set({ aoi }),
   addAnalysis: (result) => set(state => ({ analyses: [...state.analyses,result], investigation: {...state.investigation,lastAnalysisId:result.id} })),
   sidebarCollapsed: true,
@@ -141,7 +185,7 @@ export const useApp = create<AppState>((set) => ({
   earthMode: "3d",
   lod: "global",
   advanced: false,
-  layers: new Set(["nisar-footprints", "nisar-tracks", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
+  layers: new Set(["nisar-footprints", "nisar-tracks", "nisar-coverage", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
   opacity: {},
   selectedId: null,
   hoveredId: null,
@@ -173,7 +217,27 @@ export const useApp = create<AppState>((set) => ({
   select: (id) => set((state) => {
     if (!id) return { selectedId: null, investigation: { ...state.investigation, selectedId: null } };
     const event = EARTH_EVENTS.find((item) => item.id === id) ?? state.liveEvents.find((item) => item.id === id);
-    if (!event) return { selectedId: id, investigation: { ...state.investigation, selectedId: id } };
+    if (!event) {
+      const granule = state.nisarGranules.find((item) => item.id === id);
+      if (!granule) return { selectedId: id, investigation: { ...state.investigation, selectedId: id } };
+      const bounds = granule.bounds;
+      const footprint = granule.footprint;
+      const lat = bounds ? (bounds.south + bounds.north) / 2 : footprint?.reduce((sum, point) => sum + point[1], 0)! / Math.max(1, footprint?.length ?? 1);
+      const lng = bounds ? (bounds.west + bounds.east) / 2 : footprint?.reduce((sum, point) => sum + point[0], 0)! / Math.max(1, footprint?.length ?? 1);
+      const eventDay = (granule.startDate || state.time.current).slice(0, 10);
+      const safeDay = eventDay > dateKey(new Date()) ? dateKey(new Date()) : eventDay;
+      const start = safeDay < state.time.start ? safeDay : state.time.start;
+      const end = safeDay > state.time.end ? safeDay : state.time.end;
+      return {
+        selectedId: id,
+        view: { lat: Number.isFinite(lat) ? lat : state.view.lat, lng: Number.isFinite(lng) ? lng : state.view.lng, altitude: 0.12 },
+        lod: lodForAltitude(0.12),
+        viewNonce: state.viewNonce + 1,
+        monthIndex: new Date(safeDay).getUTCMonth(),
+        time: { ...state.time, start, end, current: safeDay },
+        investigation: { ...state.investigation, selectedId: id, region: "NISAR acquisition coverage", types: null },
+      };
+    }
     const eventDay = event.date.slice(0, 10);
     const monthIndex = new Date(eventDay).getUTCMonth();
     return {
