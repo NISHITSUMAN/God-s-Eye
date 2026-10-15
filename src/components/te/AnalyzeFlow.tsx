@@ -2,14 +2,14 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { ClientOnly, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
-import { ANALYSIS_CATALOG, makeAOI, rectangleAOI, validateGeometry, type DrawTool } from "@/lib/analysis";
+import { ANALYSIS_CATALOG, makeAOI, rectangleAOI, validateGeometry, type DrawTool, type AnalysisTimeMode } from "@/lib/analysis";
 import { DATASETS, sampleDataProvider } from "@/lib/earth-data";
 import { searchNISARCoverage } from "@/lib/nasa-cmr";
 import { SearchBox } from "./SearchBox";
 import { Check, Upload, Eraser, MapPin, Circle, Pentagon, Square, Scan } from "lucide-react";
 const AreaMap=lazy(()=>import('./AreaMap'));
 export function AnalyzeFlow(){
- const [step,setStep]=useState(0);const [tool,setTool]=useState<DrawTool|null>(null);const [datasets,setDatasets]=useState<string[]>(['GCOV']);const [kind,setKind]=useState('Change Detection');const [start,setStart]=useState('');const [end,setEnd]=useState('');const [timeMode,setTimeMode]=useState('range');const [running,setRunning]=useState(false);const [error,setError]=useState('');const [resultId,setResultId]=useState<string|null>(null);const aoi=useApp(s=>s.aoi);const result=useApp(s=>s.analyses.find(item=>item.id===resultId));const upload=useRef<HTMLInputElement>(null);
+ const [step,setStep]=useState(0);const [tool,setTool]=useState<DrawTool|null>(null);const [datasets,setDatasets]=useState<string[]>(['GCOV']);const [kind,setKind]=useState('Change Detection');const [start,setStart]=useState('');const [end,setEnd]=useState('');const [timeMode,setTimeMode]=useState<AnalysisTimeMode>('range');const [running,setRunning]=useState(false);const [error,setError]=useState('');const [resultId,setResultId]=useState<string|null>(null);const aoi=useApp(s=>s.aoi);const result=useApp(s=>s.analyses.find(item=>item.id===resultId));const upload=useRef<HTMLInputElement>(null);
  const fromView=()=>{const v=useApp.getState().view;useApp.getState().setAOI(rectangleAOI([v.lng-1,v.lat-1],[v.lng+1,v.lat+1]));};
  const readUpload=async(file:File)=>{try{if(file.size>2e6)throw new Error('File must be smaller than 2 MB.');const text=await file.text();let input:unknown;if(file.name.toLowerCase().endsWith('.kml')){const {kml}=await import('@tmcw/togeojson');input=kml(new DOMParser().parseFromString(text,'text/xml'));}else input=JSON.parse(text);useApp.getState().setAOI(makeAOI(validateGeometry(input),file.name));setError('');}catch(e){setError(e instanceof Error?e.message:'Invalid area file.');}};
  const run=async()=>{
