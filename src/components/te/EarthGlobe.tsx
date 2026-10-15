@@ -244,8 +244,8 @@ export default function EarthGlobe() {
     void GeoJsonDataSource.load("/data/jammu-kashmir-ladakh.geojson", {
       clampToGround: true,
       stroke: boundaryColor,
-      strokeWidth: 4,
-      fill: boundaryColor.withAlpha(0.14),
+      strokeWidth: 6,
+      fill: boundaryColor.withAlpha(0.22),
     }).then(async (boundary) => {
       if (cancelled || viewer.isDestroyed()) return;
       boundaryDataSource = boundary;
@@ -259,8 +259,8 @@ export default function EarthGlobe() {
         position: Cartesian3.fromDegrees(longitude, latitude, 50000),
         label: {
           text,
-          font: "bold 13px sans-serif",
-          fillColor: Color.fromCssColorString("#FFE2BD"),
+          font: "bold 15px sans-serif",
+          fillColor: Color.fromCssColorString("#FFF2E2"),
           outlineColor: Color.BLACK,
           outlineWidth: 3,
           style: LabelStyle.FILL_AND_OUTLINE,
