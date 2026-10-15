@@ -17,8 +17,53 @@ function useOpen() {
 
 const Dot = ({ type }: { type: Phenomenon }) => <span className="inline-block size-1.5 rounded-full" style={{ background: phenomenonColor(type) }} />;
 
-export const DiscoverBody = DiscoverFindings;
-export const EventsBody = EventCatalog;
+export function DiscoverBody() {
+  const granules = useApp((state) => state.nisarGranules);
+  const status = useApp((state) => state.nisarStatus);
+  const error = useApp((state) => state.nisarError);
+  const open = useOpen();
+  return <div className="space-y-6">
+    <section className="scientific-band">
+      <div className="label-xs text-primary">REAL NASA NISAR ACQUISITIONS</div>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="text-lg">Recently catalogued products</h2><p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">These are real product records from NASA CMR. Footprints show catalog coverage; quicklook images are previews and are not analysed measurements or hazard predictions.</p></div>
+        <span className="font-mono text-[10px] text-muted-foreground">{status.toUpperCase()} · {granules.length} PRODUCTS</span>
+      </div>
+      {error && <p role="status" className="mt-3 text-xs text-amber">{error}</p>}
+      {granules.length ? <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {granules.slice(0, 12).map(granule => <article key={granule.conceptId} className="flex min-w-0 gap-3 rounded-lg border border-border bg-background/30 p-3">
+          {granule.browseUrl ? <a href={granule.browseUrl} target="_blank" rel="noopener noreferrer" className="block h-24 w-28 shrink-0 overflow-hidden rounded border border-border bg-background"><img src={granule.browseUrl} alt={`NISAR ${granule.productCode} browse quicklook`} loading="lazy" className="h-full w-full object-contain" onError={event => { event.currentTarget.style.display = "none"; }} /></a> : <div className="flex h-24 w-28 shrink-0 items-center justify-center rounded border border-border bg-background font-mono text-[9px] text-subtle">NO PREVIEW</div>}
+          <div className="min-w-0 flex-1"><div className="font-mono text-[10px] text-primary">{granule.productCode} · {granule.startDate?.slice(0,10) ?? "DATE N/A"}</div><div className="mt-1 break-all text-[10px] leading-snug">{granule.granuleId}</div><div className="mt-2 flex flex-wrap gap-3 text-[11px]"><Link to="/observations/$id" params={{id:granule.id}} className="text-primary hover:underline">Inspect metadata</Link><button type="button" onClick={() => open(granule.id)} className="text-primary hover:underline">View footprint</button><a href={granule.earthdataSearchUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Earthdata ↗</a></div></div>
+        </article>)}
+      </div> : <p className="mt-4 rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">{status === "loading" ? "Searching NASA CMR for real NISAR acquisitions…" : "No browseable NISAR granules are currently loaded for the default India area and date range. Use Data Explorer to refresh or narrow the query."}</p>}
+      <Link to="/data" className="mt-4 inline-block text-xs text-primary hover:underline">SEARCH COLLECTIONS AND GRANULES IN DATA EXPLORER ↗</Link>
+    </section>
+    <section>
+      <div className="scientific-band mb-3"><div className="label-xs text-amber">DEMO ONLY</div><h2 className="mt-2 text-lg">Illustrative change candidates</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">The cards below are still sample records used to demonstrate the interface. They are not detections computed from the real NISAR products above.</p></div>
+      <DiscoverFindings />
+    </section>
+  </div>;
+}
+
+export function EventsBody() {
+  const granules = useApp((state) => state.nisarGranules);
+  const status = useApp((state) => state.nisarStatus);
+  const open = useOpen();
+  return <div className="space-y-6">
+    <section className="scientific-band">
+      <div className="label-xs text-primary">REAL SATELLITE ACQUISITIONS</div>
+      <h2 className="mt-2 text-lg">NISAR observations near the selected time window</h2>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">These catalog records are real satellite acquisitions. They are not, by themselves, flood, fire, landslide or deformation events. Select a footprint to inspect its acquisition context.</p>
+      <p className="mt-2 font-mono text-[10px] text-muted-foreground">{status.toUpperCase()} · {granules.length} GRANULES</p>
+      {granules.length ? <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {granules.slice(0, 8).map(granule => <button key={granule.conceptId} type="button" onClick={() => open(granule.id)} className="flex min-w-0 items-start justify-between gap-3 rounded-md border border-border bg-background/30 p-3 text-left hover:bg-elevated"><div className="min-w-0"><div className="font-mono text-[10px] text-primary">{granule.productCode} · {granule.startDate?.slice(0,10) ?? "DATE N/A"}</div><div className="mt-1 break-all text-xs">{granule.granuleId}</div></div><span className="shrink-0 text-[10px] text-primary">VIEW MAP ↗</span></button>)}
+      </div> : <p className="mt-3 text-xs text-muted-foreground">{status === "loading" ? "Loading NASA catalog records…" : "No live NISAR granules are loaded for this window."}</p>}
+    </section>
+    <section className="scientific-band"><div className="label-xs text-amber">SAMPLE CANDIDATES BELOW</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">The event catalog below contains illustrative NISAR-style candidate records alongside separately attributed public-event records. The sample candidates are not computed from the live NISAR product catalog.</p></section>
+    <EventCatalog />
+  </div>;
+}
+
 export const ObservationsBody = ObservationCatalog;
 
 export function TimelineBody() {
