@@ -106,53 +106,81 @@ export default function EarthGlobe() {
     });
     ref.current = viewer;
 
-    const naturalEarthFallback = async () => {
-      if (cancelled || viewer.isDestroyed()) return;
-      try {
-        const provider = await TileMapServiceImageryProvider.fromUrl("/cesium/Assets/Textures/NaturalEarthII");
-        if (cancelled || viewer.isDestroyed()) return;
-        if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
-        activeLayer = viewer.imageryLayers.addImageryProvider(provider);
-        activeProvider = undefined;
-        setImageryLabel("Natural Earth II fallback");
-        setReady(true);
-        setError("High-resolution imagery is unavailable; using a low-resolution global fallback.");
-      } catch (fallbackError) {
-        console.error("Bundled Earth fallback could not be loaded.", fallbackError);
-        setError("Earth imagery could not be loaded. Check your network and imagery provider settings.");
-      }
+    const removeActiveLayer = () => {
+      if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
+      activeLayer = undefined;
+      activeProvider = undefined;
     };
 
-    const installEsriFallback = (notice?: string) => {
+    const installProvider = (
+      provider: ImageryProvider,
+      label: string,
+      nextFallback: (() => void | Promise<void>) | null,
+      notice: string | null = null,
+    ) => {
       if (cancelled || viewer.isDestroyed()) return;
-      const provider = esriWorldImagery();
-      if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
-      activeLayer = viewer.imageryLayers.addImageryProvider(provider);
-      activeProvider = provider;
-      setImageryLabel("Esri World Imagery");
-      setReady(true);
-      setError(notice ?? null);
-      provider.errorEvent.addEventListener((tileError) => {
-        if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
-        fallbackBusy = true;
-        void naturalEarthFallback().finally(() => { fallbackBusy = false; });
-      });
-    };
-
-    const installConfigured = (provider: UrlTemplateImageryProvider | IonImageryProvider, label: string) => {
-      if (cancelled || viewer.isDestroyed()) return;
-      if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
+      removeActiveLayer();
       activeLayer = viewer.imageryLayers.addImageryProvider(provider);
       activeProvider = provider;
       setImageryLabel(label);
       setReady(true);
-      setError(null);
+      setError(notice);
       viewer.scene.requestRender();
       provider.errorEvent.addEventListener((tileError) => {
-        if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy || tileError.timesRetried < 2) return;
+        if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy) return;
+        if (tileError.timesRetried < 2) return;
+        if (!nextFallback) {
+          setError("Earth tiles are failing to load. Check your connection, retry, or switch to the 2D map.");
+          return;
+        }
         fallbackBusy = true;
-        void installEsriFallback("The configured imagery source failed; switched to Esri World Imagery.").finally(() => { fallbackBusy = false; });
+        void Promise.resolve(nextFallback()).finally(() => { fallbackBusy = false; });
       });
+    };
+
+    const installNaturalEarthFallback = async () => {
+      if (cancelled || viewer.isDestroyed()) return;
+      try {
+        const provider = await TileMapServiceImageryProvider.fromUrl("/cesium/Assets/Textures/NaturalEarthII");
+        installProvider(provider, "Natural Earth II fallback", null, "High-detail imagery could not load. Showing a low-resolution fallback.");
+      } catch (fallbackError) {
+        console.error("Bundled Earth fallback could not be loaded.", fallbackError);
+        setReady(false);
+        setError("No Earth imagery source could load. Check your connection, retry, or switch to the 2D map.");
+      }
+    };
+
+    const installOSMFallback = (notice: string) => {
+      installProvider(
+        openStreetMapImagery(),
+        "OpenStreetMap",
+        () => installNaturalEarthFallback(),
+        notice,
+      );
+    };
+
+    const installEsriFallback = async (notice?: string) => {
+      if (cancelled || viewer.isDestroyed()) return;
+      try {
+        const provider = await esriWorldImagery();
+        installProvider(
+          provider,
+          "Esri World Imagery",
+          () => installOSMFallback("Satellite tiles are unavailable on this connection. Switched to OpenStreetMap."),
+          notice ?? null,
+        );
+      } catch (providerError) {
+        console.warn("Esri imagery could not initialize; trying OpenStreetMap.", providerError);
+        installOSMFallback("Satellite imagery could not initialize. Showing OpenStreetMap instead.");
+      }
+    };
+
+    const installConfigured = (provider: ImageryProvider, label: string) => {
+      installProvider(
+        provider,
+        label,
+        () => installEsriFallback("The configured imagery source failed. Switched to Esri World Imagery."),
+      );
     };
 
     const loadImagery = async () => {
@@ -168,11 +196,22 @@ export default function EarthGlobe() {
           installConfigured(provider, "Cesium ion imagery");
           return;
         } catch (ionError) {
-          console.warn("Cesium ion imagery unavailable; using public imagery fallback.", ionError);
+          console.warn("Cesium ion imagery unavailable; trying public imagery.", ionError);
         }
       }
-      if (!cancelled && !viewer.isDestroyed()) await installEsriFallback();
+      await installEsriFallback();
     };
+
+    const retry = () => {
+      if (cancelled || viewer.isDestroyed()) return;
+      fallbackBusy = false;
+      removeActiveLayer();
+      setReady(false);
+      setError(null);
+      setImageryLabel("Retrying imagery");
+      void loadImagery();
+    };
+    retryImageryRef.current = retry;
     void loadImagery();
 
     if (USE_ION_TERRAIN && token) {
@@ -245,6 +284,8 @@ export default function EarthGlobe() {
     return () => {
       cancelled = true;
       resizeObserver?.disconnect();
+      retryImageryRef.current = null;
+      resizeObserver?.disconnect();
       handler.destroy();
       removeCamera();
       removeTick();
@@ -316,8 +357,14 @@ export default function EarthGlobe() {
 
   return <div className="absolute inset-0 earth-renderer" data-earth-engine="cesium">
     <div ref={container} className="absolute inset-0" />
-    {!ready && !error && <div className="earth-status label-xs" role="status">LOADING EARTH IMAGERY</div>}
-    {error && <div className="earth-status label-xs" role="status">{error}</div>}
+    {!ready && !error && <div className="earth-status label-xs" role="status">CONNECTING TO EARTH IMAGERY…</div>}
+    {error && <div className="earth-status earth-status-action" role="status">
+      <p>{error}</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        <button type="button" className="rounded border border-primary/50 px-3 py-1.5 text-[11px] text-primary hover:bg-primary/10" onClick={() => retryImageryRef.current?.()}>RETRY IMAGERY</button>
+        <button type="button" className="rounded border border-border px-3 py-1.5 text-[11px] hover:bg-elevated" onClick={() => useApp.getState().setEarthMode("2d")}>OPEN 2D MAP</button>
+      </div>
+    </div>}
     <div className="earth-attribution">{imageryLabel} · sample scientific overlays</div>
   </div>;
 }
