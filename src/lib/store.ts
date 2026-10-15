@@ -247,9 +247,9 @@ export const useApp = create<AppState>((set) => ({
       const granule = state.nisarGranules.find((item) => item.id === id);
       if (!granule) return { selectedId: id, investigation: { ...state.investigation, selectedId: id } };
       const bounds = granule.bounds;
-      const footprint = granule.footprint;
-      const lat = bounds ? (bounds.south + bounds.north) / 2 : footprint?.reduce((sum, point) => sum + point[1], 0)! / Math.max(1, footprint?.length ?? 1);
-      const lng = bounds ? (bounds.west + bounds.east) / 2 : footprint?.reduce((sum, point) => sum + point[0], 0)! / Math.max(1, footprint?.length ?? 1);
+      const footprint = granule.footprint ?? [];
+      const lat = bounds ? (bounds.south + bounds.north) / 2 : footprint.reduce((sum, point) => sum + point[1], 0) / Math.max(1, footprint.length);
+      const lng = bounds ? (bounds.west + bounds.east) / 2 : footprint.reduce((sum, point) => sum + point[0], 0) / Math.max(1, footprint.length);
       const eventDay = (granule.startDate || state.time.current).slice(0, 10);
       const safeDay = eventDay > dateKey(new Date()) ? dateKey(new Date()) : eventDay;
       const start = safeDay < state.time.start ? safeDay : state.time.start;
