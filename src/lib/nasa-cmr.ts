@@ -192,13 +192,16 @@ function parseRange(umm: Record<string, unknown>): { start: string | null; end: 
   return { start: null, end: null };
 }
 
-async function fetchCMR<T>(url: URL): Promise<T> {
+async function fetchCMR<T>(
+  url: URL,
+  accept = "application/vnd.nasa.cmr.umm_results+json, application/json",
+): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), CMR_TIMEOUT_MS);
   try {
     const response = await fetch(url.toString(), {
       signal: controller.signal,
-      headers: { Accept: "application/vnd.nasa.cmr.umm_results+json, application/json" },
+      headers: { Accept: accept },
     });
     if (!response.ok) throw new Error(`NASA CMR returned HTTP ${response.status}.`);
     return await response.json() as T;
@@ -358,7 +361,7 @@ export async function fetchNISARGranuleByConceptId(conceptId: string): Promise<N
     throw new Error("The NISAR granule ID is invalid.");
   }
   const url = new URL(`${CMR_BASE}/concepts/${encodeURIComponent(conceptId)}.umm_json`);
-  const item = await fetchCMR<CMRItem>(url);
+  const item = await fetchCMR<CMRItem>(url, "application/vnd.nasa.cmr.umm+json, application/json");
   const granule = normalizeNISARGranule(item);
   if (!granule || granule.conceptId !== conceptId) {
     throw new Error("NASA CMR did not return that NISAR granule. It may have been removed or its ID may be incorrect.");
