@@ -297,6 +297,75 @@ function validateBounds(bounds: CMRBounds): void {
  * Search real NISAR granule metadata for a chosen CMR collection.
  * An AOI bbox and date range are optional. Browse links are optional and downloads may need Earthdata Login.
  */
+function normalizeNISARGranule(
+  item: CMRItem,
+  options: { collectionConceptId?: string; collectionShortName?: string } = {},
+): NISARGranule | null {
+  const meta = item.meta;
+  const umm = item.umm;
+  if (!meta || !umm) return null;
+  const conceptId = textValue(meta["concept-id"] ?? meta.concept_id);
+  const granuleId = textValue(umm.GranuleUR) || textValue(meta["native-id"] ?? meta.native_id);
+  if (!conceptId || !granuleId) return null;
+
+  const temporal = recordOf(umm.TemporalExtent);
+  const range = recordOf(temporal?.RangeDateTime);
+  const singleDate = textValue(temporal?.SingleDateTime) || "";
+  const startDate = textValue(range?.BeginningDateTime) || singleDate || null;
+  const endDate = textValue(range?.EndingDateTime) || singleDate || null;
+  const dataCenters = Array.isArray(umm.DataCenters) ? umm.DataCenters : [];
+  const producer = textValue(recordOf(dataCenters[0])?.ShortName);
+  const spatial = granuleSpatial(umm);
+  const related = granuleRelatedUrls(umm);
+  const collection = recordOf(umm.CollectionReference);
+  const collectionConceptId =
+    textValue(meta["collection-concept-id"] ?? meta.collection_concept_id) ||
+    options.collectionConceptId ||
+    "";
+  const collectionShortName =
+    options.collectionShortName ||
+    textValue(collection?.ShortName) ||
+    textValue(collection?.EntryTitle) ||
+    collectionConceptId;
+  const productCode =
+    (collectionShortName || granuleId).match(/GCOV|GSLC|GUNW|GOFF|RSLC|RIFG|ROFF|RUNW|SME2|CRSD|RRSD/i)?.[0]?.toUpperCase() ||
+    "NISAR";
+  const title = textValue(collection?.EntryTitle) || granuleId;
+
+  return {
+    id: `nisar:${conceptId}`,
+    conceptId,
+    granuleId,
+    collectionConceptId,
+    collectionShortName,
+    productCode,
+    title,
+    startDate,
+    endDate,
+    producer,
+    bounds: spatial.bounds,
+    footprint: spatial.footprint,
+    browseUrl: related.browseUrl,
+    dataUrl: related.dataUrl,
+    metadataUrl: `https://cmr.earthdata.nasa.gov/search/concepts/${encodeURIComponent(conceptId)}`,
+    earthdataSearchUrl: `https://search.earthdata.nasa.gov/search?q=${encodeURIComponent(granuleId)}`,
+  };
+}
+
+/** Load a real granule directly so observation URLs continue to work after refresh or sharing. */
+export async function fetchNISARGranuleByConceptId(conceptId: string): Promise<NISARGranule> {
+  if (!/^G\\d+-[A-Z0-9_-]+$/i.test(conceptId)) {
+    throw new Error("The NISAR granule ID is invalid.");
+  }
+  const url = new URL(`${CMR_BASE}/concepts/${encodeURIComponent(conceptId)}.umm_json`);
+  const item = await fetchCMR<CMRItem>(url);
+  const granule = normalizeNISARGranule(item);
+  if (!granule || granule.conceptId !== conceptId) {
+    throw new Error("NASA CMR did not return that NISAR granule. It may have been removed or its ID may be incorrect.");
+  }
+  return granule;
+}
+
 export async function searchNISARGranules(options: {
   collectionConceptId: string;
   bounds?: CMRBounds | null;
@@ -330,42 +399,11 @@ export async function searchNISARGranules(options: {
   if (!Array.isArray(data.items)) throw new Error("NASA CMR returned an unexpected granule response.");
 
   const granules: NISARGranule[] = data.items.flatMap((item) => {
-    const meta = item.meta;
-    const umm = item.umm;
-    if (!meta || !umm) return [];
-    const conceptId = textValue(meta["concept-id"] ?? meta.concept_id);
-    const granuleId = textValue(umm.GranuleUR) || textValue(meta["native-id"] ?? meta.native_id);
-    if (!conceptId || !granuleId) return [];
-    const temporal = recordOf(umm.TemporalExtent);
-    const range = recordOf(temporal?.RangeDateTime);
-    const singleDate = textValue(temporal?.SingleDateTime) || "";
-    const startDate = textValue(range?.BeginningDateTime) || singleDate || null;
-    const endDate = textValue(range?.EndingDateTime) || singleDate || null;
-    const dataCenters = Array.isArray(umm.DataCenters) ? umm.DataCenters : [];
-    const dataCenter = textValue(recordOf(dataCenters[0])?.ShortName);
-    const spatial = granuleSpatial(umm);
-    const related = granuleRelatedUrls(umm);
-    const productCode = (options.collectionShortName || granuleId).match(/GCOV|GSLC|GUNW|GOFF|RSLC|RIFG|ROFF|RUNW|SME2|CRSD|RRSD/i)?.[0]?.toUpperCase() || "NISAR";
-    const title = textValue(umm.CollectionReference && recordOf(umm.CollectionReference)?.EntryTitle) || granuleId;
-    // Only expose browse images returned by NASA CMR; do not guess URL patterns.
-    return [{
-      id: `nisar:${conceptId}`,
-      conceptId,
-      granuleId,
+    const granule = normalizeNISARGranule(item, {
       collectionConceptId: options.collectionConceptId,
-      collectionShortName: options.collectionShortName || "",
-      productCode,
-      title,
-      startDate,
-      endDate,
-      producer: dataCenter,
-      bounds: spatial.bounds,
-      footprint: spatial.footprint,
-      browseUrl: related.browseUrl,
-      dataUrl: related.dataUrl,
-      metadataUrl: `https://cmr.earthdata.nasa.gov/search/concepts/${encodeURIComponent(conceptId)}`,
-      earthdataSearchUrl: `https://search.earthdata.nasa.gov/search?q=${encodeURIComponent(granuleId)}`,
-    }];
+      collectionShortName: options.collectionShortName,
+    });
+    return granule ? [granule] : [];
   });
 
   return {
@@ -384,7 +422,7 @@ export interface NISARCoverageResult {
 }
 
 /**
- * Discover available, real NISAR browseable products for the selected area and time.
+ * Discover real NISAR product records and their available spatial footprints for the selected area and time.
  * It returns catalog metadata and browse links; it does not download or process HDF5 rasters.
  */
 export async function searchNISARCoverage(options: {
