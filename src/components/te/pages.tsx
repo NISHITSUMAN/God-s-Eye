@@ -7,6 +7,7 @@ import { ObservationCatalog, EventCatalog, DiscoverFindings } from "./CatalogVie
 import { AnalyzeFlow } from "./AnalyzeFlow";
 import { ScienceLearn } from "./ScientificViews";
 import { Panel } from "./PageShell";
+import { NISARCatalog } from "./NISARCatalog";
 import { cn } from "@/lib/utils";
 
 function useOpen() {
@@ -87,12 +88,15 @@ export function DataBody() {
           {error && <p role="status" className="mt-2 text-xs text-amber">{error}</p>}
         </div>
       </section>
+      <NISARCatalog />
+      <div className="label-xs mt-8">COMMON NISAR PRODUCT FAMILIES · REFERENCE ONLY</div>
+      <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">These are familiar product families, not a substitute for the live CMR results above. Availability, collection versions, access conditions, and coverage depend on the exact catalog record.</p>
       <div className="grid gap-3 md:grid-cols-3">
         {PRODUCTS.map(([id, name, lvl]) => (
           <Panel key={id} className="p-5">
             <div className="flex justify-between"><span className="font-mono text-[14px] text-primary">NISAR-{id}</span><span className="font-mono text-[10px] text-subtle">{lvl}</span></div>
             <div className="mt-2 text-[13px] text-muted-foreground">{name}</div>
-            <div className="mt-4 font-mono text-[10px] tracking-wider text-subtle">CATALOG REFERENCE · REAL PRODUCT SERVICE NOT CONNECTED</div>
+            <div className="mt-4 font-mono text-[10px] tracking-wider text-subtle">PRODUCT FAMILY · CHECK LIVE CMR RECORD ABOVE</div>
           </Panel>
         ))}
       </div>
