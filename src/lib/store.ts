@@ -40,6 +40,7 @@ export interface AppState {
   nisarGranules: NISARGranule[];
   nisarGranuleHits: number;
   nisarSelectedProductCodes: string[];
+  setNISARProductSelection: (productCodes: string[]) => void;
   nisarStatus: "idle" | "loading" | "ready" | "partial" | "error";
   nisarUpdatedAt: string | null;
   nisarError: string | null;
@@ -153,6 +154,11 @@ export const useApp = create<AppState>((set) => ({
   nisarGranules: [],
   nisarGranuleHits: 0,
   nisarSelectedProductCodes: DEFAULT_NISAR_PRODUCTS,
+  setNISARProductSelection: (productCodes) => {
+    const supported = new Set(["GCOV", "GSLC", "GUNW", "GOFF", "RSLC", "RIFG", "ROFF", "RUNW", "SME2"]);
+    const selected = [...new Set(productCodes.map(code => code.toUpperCase()).filter(code => supported.has(code)))];
+    if (selected.length) set({ nisarSelectedProductCodes: selected });
+  },
   nisarStatus: "idle",
   nisarUpdatedAt: null,
   nisarError: null,
