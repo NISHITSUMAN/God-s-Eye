@@ -333,6 +333,7 @@ export default function EarthGlobe() {
         viewer.scene.canvas.removeEventListener("pointerdown", markInteraction);
         viewer.scene.canvas.removeEventListener("wheel", markInteraction);
         viewer.dataSources.remove(source, true);
+        if (boundaryDataSource) viewer.dataSources.remove(boundaryDataSource, true);
         viewer.destroy();
       }
       ref.current = null;
