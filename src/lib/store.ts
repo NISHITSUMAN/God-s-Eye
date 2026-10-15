@@ -9,7 +9,7 @@ export interface TimeRange { start: string; end: string; current: string }
 export interface EarthFilter {
   types: Phenomenon[] | null;
   region: string | null;
-  significance: "all" | "high" | "moderate+" | "low+" | "custom";
+  significance: "all" | "high" | "moderate+" | "low+";
   confidence: "all" | "high" | "moderate+" | "low+";
   severity: "all" | SeverityBand;
   evidence: "all" | EvidenceClass;
