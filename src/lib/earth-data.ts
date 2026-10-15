@@ -59,9 +59,10 @@ function samplePolygon(event: EarthEvent, index: number): SampleGeometry {
 }
 
 const evidenceClass = (event: EarthEvent): EvidenceClass => {
-  const nisar = event.evidence.some((item) => item.source.toLowerCase().includes("nisar"));
-  if (event.evidence.length >= 3) return "multi-source";
-  return nisar && event.evidence.length === 1 ? "nisar" : "supporting";
+  const hasNisar = event.evidence.some((item) => item.source.toLowerCase().includes("nisar"));
+  const hasSupportingSource = event.evidence.some((item) => !item.source.toLowerCase().includes("nisar"));
+  if (hasNisar && hasSupportingSource) return "multi-source";
+  return hasNisar ? "nisar" : "supporting";
 };
 
 export const EARTH_EVENTS: EarthEventRecord[] = EVENTS.map((event, index) => ({
