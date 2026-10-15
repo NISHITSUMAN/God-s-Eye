@@ -19,7 +19,7 @@ function mockJSON(payload: unknown) {
 describe("public live event feeds", () => {
   it("normalizes USGS earthquake reports with official source links", async () => {
     const time = Date.parse("2026-10-15T08:30:00Z");
-    mockJSON({
+    const fetchMock = mockJSON({
       features: [{
         id: "us7000test",
         type: "Feature",
@@ -49,6 +49,9 @@ describe("public live event feeds", () => {
       date: "2026-10-15T08:30:00.000Z",
     });
     expect(events[0]?.sourceUrl).toContain("https://earthquake.usgs.gov/");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("minmagnitude=5.0");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("starttime=");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("endtime=");
     expect(events[0]?.summary).toContain("Depth 12.4 km");
   });
 
@@ -78,7 +81,7 @@ describe("public live event feeds", () => {
   });
 
   it("maps supported NASA EONET categories to separate live events", async () => {
-    mockJSON({
+    const fetchMock = mockJSON({
       events: [
         {
           id: "EONET_123",
@@ -110,6 +113,9 @@ describe("public live event feeds", () => {
     });
     expect(events[0]?.sourceUrl).toContain("https://eonet.gsfc.nasa.gov/");
     expect(events[0]?.summary).toContain("source-reported");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("status=all");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("start=");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("end=");
   });
 
   it("uses the latest usable geometry and bounds coordinate traversal", async () => {
