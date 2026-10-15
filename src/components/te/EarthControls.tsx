@@ -18,7 +18,7 @@ export function SignificanceControls() {
     <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-mono text-[10px]"><SlidersHorizontal className="size-3" />SIGNIFICANCE: {filter.significance.toUpperCase()}</summary>
     <div className="grid gap-3 border-t border-border p-3">
       {([
-        ["significance", "Significance", ["all", "high", "moderate+", "low+"]],
+        ["significance", "Significance", ["all", "high", "moderate+"]],
         ["confidence", "Confidence", ["all", "high", "moderate+", "low+"]],
         ["severity", "Severity", ["all", "high", "moderate", "low"]],
         ["evidence", "Evidence", ["all", "nisar", "supporting", "multi-source"]],
