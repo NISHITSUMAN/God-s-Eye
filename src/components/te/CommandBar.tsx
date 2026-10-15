@@ -5,7 +5,7 @@ import { useApp } from "@/lib/store";
 import { runCommand } from "@/lib/ai-agent";
 import { cn } from "@/lib/utils";
 
-const EXAMPLES = ["Show me fires in India", "Show potential floods in Maharashtra", "Find landslide candidates in the Himalayas", "Show the strongest deformation"];
+const EXAMPLES = ["Show NISAR coverage over Kashmir", "Find recent GCOV products", "Show NISAR coverage over Ladakh", "Open the latest NISAR acquisition"];
 
 export function CommandBar() {
   const [v, setV] = useState("");
