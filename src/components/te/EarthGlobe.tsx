@@ -249,7 +249,20 @@ export default function EarthGlobe() {
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 35000000;
     viewer.camera.percentageChanged = 0.02;
     const view = useApp.getState().view;
-    viewer.camera.setView({ destination: Cartesian3.fromDegrees(view.lng, view.lat, view.altitude * Ellipsoid.WGS84.maximumRadius) });
+    viewer.camera.setView({
+      destination: Cartesian3.fromDegrees(
+        view.lng,
+        view.lat,
+        view.altitude * Ellipsoid.WGS84.maximumRadius,
+      ),
+      // Cesium otherwise keeps the viewer's previous world-space orientation. At lon 70°,
+      // lat 18° that can leave the camera looking past Earth into empty space on first load.
+      orientation: {
+        heading: CesiumMath.toRadians(0),
+        pitch: CesiumMath.toRadians(-90),
+        roll: 0,
+      },
+    });
     viewer.scene.requestRender();
     const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
       if (!viewer.isDestroyed()) {
@@ -310,7 +323,19 @@ export default function EarthGlobe() {
     const viewer = ref.current;
     if (!viewer || !ready) return;
     const view = useApp.getState().view;
-    viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(view.lng, view.lat, view.altitude * Ellipsoid.WGS84.maximumRadius), duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1.6 });
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(
+        view.lng,
+        view.lat,
+        view.altitude * Ellipsoid.WGS84.maximumRadius,
+      ),
+      orientation: {
+        heading: CesiumMath.toRadians(0),
+        pitch: CesiumMath.toRadians(-90),
+        roll: 0,
+      },
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1.6,
+    });
   }, [nonce, ready]);
 
   useEffect(() => {
