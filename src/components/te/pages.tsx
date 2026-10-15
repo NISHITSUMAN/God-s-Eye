@@ -212,8 +212,12 @@ export function SettingsBody() {
 export function AboutBody() {
   return (
     <Panel className="max-w-2xl p-6 text-[14px] leading-relaxed text-muted-foreground">
-      <p>Third Eye is an Earth-first intelligence platform that combines NISAR radar observations with complementary environmental datasets to explore, detect and interpret change across the planet.</p>
-      <p className="mt-3">This build is a frontend prototype. Every event, observation and metric shown is illustrative and labelled as such until live data services are connected.</p>
+      <p>Third Eye is an Earth-observation exploration prototype with a 3D globe, 2D map, timeline, area-of-interest workflow, scientific catalog views, and an interface command simulator.</p>
+      <p className="mt-3">Optional live context feeds can display source-reported earthquakes from USGS and open natural events from NASA EONET. They are separate from the illustrative NISAR-style science overlays.</p>
+      <div className="mt-4 rounded-md border border-border bg-background/40 p-4">
+        <div className="label-xs text-amber">SCIENTIFIC LIMITATIONS</div>
+        <p className="mt-2 text-[13px]">This build does not ingest, process, or interpret real NISAR radar measurements. Sample events, observation metadata, geometries, and analysis outputs are demonstrative. The command interface simulates actions; it is not a connected AI assistant or hazard-prediction system.</p>
+      </div>
       <Link to="/" className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-[12px] font-medium text-primary-foreground">Open Explore</Link>
     </Panel>
   );
