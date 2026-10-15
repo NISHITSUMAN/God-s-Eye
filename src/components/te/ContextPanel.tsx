@@ -43,7 +43,8 @@ export function ContextPanel() {
             <div><dt>Acquisition start</dt><dd>{nisar.startDate ? nisar.startDate.replace("T", " ").slice(0, 19) + " UTC" : "Not reported"}</dd></div>
             <div><dt>Acquisition end</dt><dd>{nisar.endDate ? nisar.endDate.replace("T", " ").slice(0, 19) + " UTC" : "Not reported"}</dd></div>
             <div><dt>Processing level</dt><dd>{nisar.collectionShortName.match(/L[0-3]|L0B/i)?.[0] ?? "See collection metadata"}</dd></div>
-            <div><dt>Footprint bounds</dt><dd>{boundsText}</dd></div>
+            <div><dt>Spatial extent</dt><dd>{nisar.footprint && nisar.footprint.length >= 3 ? "Source granule polygon" : "Approximate CMR bounding rectangle"}</dd></div>
+            <div><dt>Extent bounds</dt><dd>{boundsText}</dd></div>
             <div><dt>Data provider</dt><dd>{nisar.producer || "NASA CMR / ASF"}</dd></div>
           </dl>
           <div className="grid gap-2">
