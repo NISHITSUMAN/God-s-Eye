@@ -4,10 +4,39 @@
 import { useApp, visibleEvents } from "./store";
 import { EVENTS, LOCATIONS, PHENOMENA, phenomenonLabel, type Phenomenon } from "./mock-data";
 import { DATASETS, sampleDataProvider } from "./earth-data";
-import { ANALYSIS_CATALOG } from "./analysis";
+import { ANALYSIS_CATALOG, rectangleAOI } from "./analysis";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const uid = () => Math.random().toString(36).slice(2);
+
+const NISAR_PRODUCT_CODES = ["GCOV", "GSLC", "GUNW", "GOFF", "RSLC", "RIFG", "ROFF", "RUNW", "SME2"];
+
+const NISAR_FOCUS_REGIONS = [
+  {
+    name: "Jammu & Kashmir · India-aligned boundary view",
+    keywords: ["jammu", "kashmir"],
+    bounds: [72.2, 32.1, 77.7, 37.3] as [number, number, number, number],
+    lat: 34,
+    lng: 74.8,
+    altitude: 0.07,
+  },
+  {
+    name: "Ladakh · India-aligned boundary view",
+    keywords: ["ladakh", "leh"],
+    bounds: [74.9, 31.9, 81, 36.5] as [number, number, number, number],
+    lat: 34.4,
+    lng: 78.1,
+    altitude: 0.09,
+  },
+  {
+    name: "Kashmir region · India-aligned boundary view",
+    keywords: ["kashmir region", "greater kashmir"],
+    bounds: [72, 31.8, 81.2, 37.8] as [number, number, number, number],
+    lat: 34.4,
+    lng: 76.2,
+    altitude: 0.18,
+  },
+];
 
 const KEYWORDS: Record<string, Phenomenon> = {
   fire: "fire", fires: "fire", wildfire: "fire", wildfires: "fire", flood: "flood", floods: "flood", flooding: "flood", forest: "forest",
@@ -36,6 +65,64 @@ export async function runCommand(raw: string) {
   const loc = LOCATIONS.find((l) => q.includes(l.name.toLowerCase()));
   const regionWord = loc?.name ?? null;
 
+  const focusRegion = NISAR_FOCUS_REGIONS.find(region =>
+    region.keywords.some(keyword => q.includes(keyword)),
+  );
+  const productCode = NISAR_PRODUCT_CODES.find(code =>
+    new RegExp(\`\\b\${code.toLowerCase()}\\b\`).test(q),
+  );
+  const nisarIntent = /\b(nisar|coverage|satellite|acquisition|granule|radar|product|swath)\b/.test(q);
+
+  // Regional commands focus the real catalogue/map, never a synthetic hazard layer.
+  if (focusRegion) {
+    const app = useApp.getState();
+    const [west, south, east, north] = focusRegion.bounds;
+    const aoi = rectangleAOI([west, south], [east, north]);
+    app.setAOI({ ...aoi, name: focusRegion.name });
+    app.flyTo({ lat: focusRegion.lat, lng: focusRegion.lng, altitude: focusRegion.altitude });
+    app.toggleLayer("nisar-coverage", true);
+    const requestedProducts = productCode ? [productCode] : app.nisarSelectedProductCodes;
+    for (const code of requestedProducts) app.toggleLayer(\`prod-\${code}\`, true);
+
+    await runSteps("SEARCHING REAL NISAR COVERAGE", [
+      "Focusing the India-aligned regional boundary",
+      "Setting the geographic search area",
+      "Querying NASA's public NISAR catalogue",
+    ]);
+    void useApp.getState().refreshNISARData(requestedProducts);
+    return reply(
+      \`Focused on \${focusRegion.name}. A NASA CMR search has started for \${productCode ?? "the selected NISAR product families"}. Returned footprints are real catalogue coverage when available; they are not by themselves flood, fire, landslide or deformation detections.\`,
+      [{ label: "Open NISAR data explorer", run: "navigate:/data" }, { label: "Open observations", run: "navigate:/observations" }],
+    );
+  }
+
+  if (productCode && (nisarIntent || /\b(show|find|search|latest|recent|open)\b/.test(q))) {
+    const app = useApp.getState();
+    app.toggleLayer("nisar-coverage", true);
+    app.toggleLayer(\`prod-\${productCode}\`, true);
+    void app.refreshNISARData([productCode]);
+    return reply(
+      \`Searching NASA CMR for real NISAR \${productCode} acquisitions in the current area and date range. This view uses published catalogue metadata and source-provided footprint geometry; full-resolution raster processing is not run in this frontend.\`,
+      [{ label: "Open data explorer", run: "navigate:/data" }],
+    );
+  }
+
+  if (nisarIntent && /\b(latest|newest|recent)\b/.test(q)) {
+    const app = useApp.getState();
+    const newest = [...app.nisarGranules]
+      .filter(granule => !productCode || granule.productCode === productCode)
+      .sort((a, b) => (Date.parse(b.startDate || "") || 0) - (Date.parse(a.startDate || "") || 0))[0];
+    if (newest) {
+      app.select(newest.id);
+      return reply(
+        \`Selected the latest loaded NISAR catalogue record: \${newest.productCode}, \${newest.startDate?.slice(0, 10) ?? "date not reported"}. This is a real acquisition record, not a processed change-detection result.\`,
+        [{ label: "Inspect acquisition", run: "navigate:/observations" }, { label: "Open data explorer", run: "navigate:/data" }],
+      );
+    }
+    void app.refreshNISARData(productCode ? [productCode] : undefined);
+    return reply("I have started a NASA CMR search for recent NISAR products. Matching records will appear in the Data Explorer.");
+  }
+
   if (/\b(dataset|datasets|product code|available products|list products|gcov|gunw|gslc|goff|sme2|rslc|rifg|runw|roff)\b/.test(q)) {
     const matching = DATASETS.filter(dataset =>
       q.includes(dataset.id.toLowerCase()) || q.includes(dataset.name.toLowerCase()) ||
@@ -43,12 +130,20 @@ export async function runCommand(raw: string) {
     );
     if (matching.length) {
       const summary = matching.map(dataset => `${dataset.name} — ${dataset.availability.toLowerCase()}`).join("; ");
-      return reply(`Dataset catalog: ${summary}. Product descriptions and availability are catalog metadata; no radar products are connected in this build.`, [{ label: "Open data catalog", run: "navigate:/data" }]);
+      return reply(`Dataset catalog: ${summary}. NASA CMR is connected for real NISAR acquisition metadata, browse previews and spatial coverage. Full-resolution raster download and scientific change detection are not implemented in this frontend.`, [{ label: "Open data catalog", run: "navigate:/data" }]);
     }
   }
 
   if (/\b(metadata|acquisition|observation details|product details)\b/.test(q)) {
     const state = useApp.getState();
+    const nisar = state.nisarGranules.find(granule =>
+      granule.id === state.selectedId ||
+      q.includes(granule.granuleId.toLowerCase()) ||
+      q.includes(granule.conceptId.toLowerCase()),
+    );
+    if (nisar) {
+      return reply(`Real NISAR catalogue record: ${nisar.productCode}; acquisition ${nisar.startDate?.slice(0, 19) ?? "date not reported"}; collection ${nisar.collectionShortName}; producer ${nisar.producer || "NASA CMR / ASF"}. Spatial coverage uses ${nisar.footprint ? "the CMR polygon footprint" : nisar.bounds ? "the CMR bounding rectangle" : "no supplied footprint"}. This is acquisition metadata, not a derived hazard detection.`, [{ label: "Open observations", run: "navigate:/observations" }, { label: "Open data explorer", run: "navigate:/data" }]);
+    }
     const liveEvent = state.liveEvents.find(event => event.id === state.selectedId || q.includes(event.sourceId.toLowerCase()) || q.includes(event.title.toLowerCase()));
     if (liveEvent) return reply(`Live record ${liveEvent.title}: ${liveEvent.date}; ${liveEvent.metricLabel}: ${liveEvent.metric}; ${liveEvent.summary}. Source: ${liveEvent.sourceLabel}. No NISAR acquisition metadata is implied.`);
     const selectedEvent = sampleDataProvider.events().find(event =>
@@ -66,7 +161,7 @@ export async function runCommand(raw: string) {
     if (selectedEvent) {
       return reply(`Sample candidate ${selectedEvent.id}: ${selectedEvent.title}, ${selectedEvent.region}, ${selectedEvent.date}; severity ${selectedEvent.severity}; confidence ${selectedEvent.confidence}. Interpretation: ${selectedEvent.interpretation} This record and its geometry are illustrative, not a verified event.`);
     }
-    return reply("Select an event or provide an observation ID to inspect its sample metadata. No live metadata service is connected.");
+    return reply("Select a real NISAR acquisition from the map or Data Explorer, or search for GCOV, GSLC, GUNW or SME2. NASA CMR metadata is connected; the full radar raster still requires a separate data-download and processing stage.", [{ label: "Open data explorer", run: "navigate:/data" }]);
   }
 
   // "biggest / strongest one" → refers to current results
@@ -98,9 +193,11 @@ export async function runCommand(raw: string) {
 
   if (/explain|what am i looking|what is this/.test(q)) {
     const state = useApp.getState();
+    const nisar = state.nisarGranules.find((granule) => granule.id === state.selectedId);
     const live = state.liveEvents.find((event) => event.id === state.selectedId);
     const sel = EVENTS.find((event) => event.id === state.selectedId);
     await runSteps("INTERPRETING", ["Reading the selected record", "Summarising source metadata"]);
+    if (nisar) return reply(`Real NISAR ${nisar.productCode} acquisition from ${nisar.startDate?.slice(0, 10) ?? "an unreported date"}. Collection: ${nisar.collectionShortName}. The map outline is catalogue-provided coverage; it is not a processed hazard map or a change-detection result.`, [{ label: "Inspect metadata", run: "navigate:/observations" }, { label: "Open data explorer", run: "navigate:/data" }]);
     if (live) return reply(`${live.title} — ${live.region}. ${live.summary} Source: ${live.sourceLabel}. This is a source-reported event, not a NISAR measurement or a Third Eye prediction. Open its source record from the context panel to inspect the publisher's details.`);
     if (!sel) return reply("Nothing is selected. Select an illustrative candidate or enable a public data layer and select a live source marker.");
     return reply(`${sel.title} — ${sel.region}. ${sel.interpretation} Evidence: ${sel.evidence.map((e) => `${e.source} (${e.strength.toLowerCase()})`).join(", ")}. This is illustrative sample data, not a confirmed event.`);
@@ -143,7 +240,7 @@ export async function runCommand(raw: string) {
   }
 
   if (/\b(analy[sz]e|run analysis|draw an area|area of interest|aoi)\b/.test(q)) {
-    return reply(`The analysis workspace supports area selection and a sample workflow. Available analysis methods include: ${ANALYSIS_CATALOG.slice(0, 8).join(", ")}. Results remain sample-only until real processing is connected.`, [{ label: "Open analysis workspace", run: "navigate:/analyze" }]);
+    return reply(`The analysis workspace can query real NASA CMR NISAR acquisitions for an area, product and date range. Available analysis methods include: ${ANALYSIS_CATALOG.slice(0, 8).join(", ")}. At present the result is catalogue discovery only; full-resolution raster processing and verified detections require a separate processing backend.`, [{ label: "Open analysis workspace", run: "navigate:/analyze" }]);
   }
 
   if (/\b(open|go to|show)\s+(the\s+)?(observations|events|datasets|data catalog|discover|methodology|learn)\b/.test(q)) {
@@ -171,7 +268,7 @@ export async function runCommand(raw: string) {
   }
 
   await runSteps("INTERPRETING REQUEST", ["Parsing intent"]);
-  reply(`I can search phenomena (${PHENOMENA.slice(0, 5).map((p) => p.label.toLowerCase()).join(", ")}…), fly to places, rank results, compare periods and explain selections.`);
+  reply(`I can focus on Kashmir or Ladakh, search real NISAR product metadata, show acquisition coverage, open the data catalog, and separately display clearly marked sample phenomena. Full radar change detection is not performed by this command simulator.`);
 }
 
 function reply(text: string, actions?: { label: string; run: string }[]) {
