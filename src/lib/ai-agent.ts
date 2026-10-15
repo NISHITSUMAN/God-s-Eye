@@ -13,6 +13,14 @@ const NISAR_PRODUCT_CODES = ["GCOV", "GSLC", "GUNW", "GOFF", "RSLC", "RIFG", "RO
 
 const NISAR_FOCUS_REGIONS = [
   {
+    name: "Kashmir region · India-aligned boundary view",
+    keywords: ["kashmir region", "greater kashmir"],
+    bounds: [72, 31.8, 81.2, 37.8] as [number, number, number, number],
+    lat: 34.4,
+    lng: 76.2,
+    altitude: 0.18,
+  },
+  {
     name: "Jammu & Kashmir · India-aligned boundary view",
     keywords: ["jammu", "kashmir"],
     bounds: [72.2, 32.1, 77.7, 37.3] as [number, number, number, number],
@@ -27,14 +35,6 @@ const NISAR_FOCUS_REGIONS = [
     lat: 34.4,
     lng: 78.1,
     altitude: 0.09,
-  },
-  {
-    name: "Kashmir region · India-aligned boundary view",
-    keywords: ["kashmir region", "greater kashmir"],
-    bounds: [72, 31.8, 81.2, 37.8] as [number, number, number, number],
-    lat: 34.4,
-    lng: 76.2,
-    altitude: 0.18,
   },
 ];
 
@@ -69,9 +69,9 @@ export async function runCommand(raw: string) {
     region.keywords.some(keyword => q.includes(keyword)),
   );
   const productCode = NISAR_PRODUCT_CODES.find(code =>
-    new RegExp(\`\\b\${code.toLowerCase()}\\b\`).test(q),
+    new RegExp(`\\b${code.toLowerCase()}\\b`).test(q),
   );
-  const nisarIntent = /\b(nisar|coverage|satellite|acquisition|granule|radar|product|swath)\b/.test(q);
+  const nisarIntent = Boolean(productCode) || /\b(nisar|coverage|satellite|acquisition|granule|radar|product|swath)\b/.test(q);
 
   // Regional commands focus the real catalogue/map, never a synthetic hazard layer.
   if (focusRegion) {
@@ -82,7 +82,7 @@ export async function runCommand(raw: string) {
     app.flyTo({ lat: focusRegion.lat, lng: focusRegion.lng, altitude: focusRegion.altitude });
     app.toggleLayer("nisar-coverage", true);
     const requestedProducts = productCode ? [productCode] : app.nisarSelectedProductCodes;
-    for (const code of requestedProducts) app.toggleLayer(\`prod-\${code}\`, true);
+    for (const code of requestedProducts) app.toggleLayer(`prod-${code}`, true);
 
     await runSteps("SEARCHING REAL NISAR COVERAGE", [
       "Focusing the India-aligned regional boundary",
@@ -91,18 +91,18 @@ export async function runCommand(raw: string) {
     ]);
     void useApp.getState().refreshNISARData(requestedProducts);
     return reply(
-      \`Focused on \${focusRegion.name}. A NASA CMR search has started for \${productCode ?? "the selected NISAR product families"}. Returned footprints are real catalogue coverage when available; they are not by themselves flood, fire, landslide or deformation detections.\`,
+      `Focused on ${focusRegion.name}. A NASA CMR search has started for ${productCode ?? "the selected NISAR product families"}. Returned footprints are real catalogue coverage when available; they are not by themselves flood, fire, landslide or deformation detections.`,
       [{ label: "Open NISAR data explorer", run: "navigate:/data" }, { label: "Open observations", run: "navigate:/observations" }],
     );
   }
 
-  if (productCode && (nisarIntent || /\b(show|find|search|latest|recent|open)\b/.test(q))) {
+  if (productCode && (nisarIntent || /\b(show|find|search|latest|recent|open)\b/.test(q)) && !/\b(latest|newest|recent)\b/.test(q)) {
     const app = useApp.getState();
     app.toggleLayer("nisar-coverage", true);
-    app.toggleLayer(\`prod-\${productCode}\`, true);
+    app.toggleLayer(`prod-${productCode}`, true);
     void app.refreshNISARData([productCode]);
     return reply(
-      \`Searching NASA CMR for real NISAR \${productCode} acquisitions in the current area and date range. This view uses published catalogue metadata and source-provided footprint geometry; full-resolution raster processing is not run in this frontend.\`,
+      `Searching NASA CMR for real NISAR ${productCode} acquisitions in the current area and date range. This view uses published catalogue metadata and source-provided footprint geometry; full-resolution raster processing is not run in this frontend.`,
       [{ label: "Open data explorer", run: "navigate:/data" }],
     );
   }
@@ -115,7 +115,7 @@ export async function runCommand(raw: string) {
     if (newest) {
       app.select(newest.id);
       return reply(
-        \`Selected the latest loaded NISAR catalogue record: \${newest.productCode}, \${newest.startDate?.slice(0, 10) ?? "date not reported"}. This is a real acquisition record, not a processed change-detection result.\`,
+        `Selected the latest loaded NISAR catalogue record: ${newest.productCode}, ${newest.startDate?.slice(0, 10) ?? "date not reported"}. This is a real acquisition record, not a processed change-detection result.`,
         [{ label: "Inspect acquisition", run: "navigate:/observations" }, { label: "Open data explorer", run: "navigate:/data" }],
       );
     }
