@@ -3,15 +3,17 @@
 // Swap `runCommand` for a real tool-calling backend later; keep the same step/message contract.
 import { useApp, visibleEvents } from "./store";
 import { EVENTS, LOCATIONS, PHENOMENA, phenomenonLabel, type Phenomenon } from "./mock-data";
+import { DATASETS, sampleDataProvider } from "./earth-data";
+import { ANALYSIS_CATALOG } from "./analysis";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const uid = () => Math.random().toString(36).slice(2);
 
 const KEYWORDS: Record<string, Phenomenon> = {
-  fire: "fire", fires: "fire", wildfire: "fire", flood: "flood", floods: "flood", forest: "forest",
-  agriculture: "agriculture", crop: "agriculture", soil: "soil", moisture: "soil", landslide: "landslide",
-  landslides: "landslide", volcano: "volcano", earthquake: "earthquake", glacier: "glacier", ice: "glacier",
-  subsidence: "subsidence", deformation: "subsidence", coastal: "coastal", urban: "urban",
+  fire: "fire", fires: "fire", wildfire: "fire", wildfires: "fire", flood: "flood", floods: "flood", flooding: "flood", forest: "forest",
+  agriculture: "agriculture", crop: "agriculture", crops: "agriculture", soil: "soil", moisture: "soil", landslide: "landslide",
+  landslides: "landslide", volcano: "volcano", volcanoes: "volcano", earthquake: "earthquake", earthquakes: "earthquake", glacier: "glacier", glaciers: "glacier", ice: "glacier",
+  subsidence: "subsidence", deformation: "subsidence", coastal: "coastal", coast: "coastal", urban: "urban,
 };
 
 async function runSteps(title: string, labels: string[]) {
@@ -47,6 +49,8 @@ export async function runCommand(raw: string) {
 
   if (/\b(metadata|acquisition|observation details|product details)\b/.test(q)) {
     const state = useApp.getState();
+    const liveEvent = state.liveEvents.find(event => event.id === state.selectedId || q.includes(event.sourceId.toLowerCase()) || q.includes(event.title.toLowerCase()));
+    if (liveEvent) return reply(`Live record ${liveEvent.title}: ${liveEvent.date}; ${liveEvent.metricLabel}: ${liveEvent.metric}; ${liveEvent.summary}. Source: ${liveEvent.sourceLabel}. No NISAR acquisition metadata is implied.`);
     const selectedEvent = sampleDataProvider.events().find(event =>
       event.id === state.selectedId ||
       q.includes(event.id.toLowerCase()) ||
@@ -67,19 +71,39 @@ export async function runCommand(raw: string) {
 
   // "biggest / strongest one" → refers to current results
   if (/(biggest|largest|strongest|most severe)/.test(q)) {
-    await runSteps("RANKING CURRENT RESULTS", ["Reading current investigation", "Ranking by severity", "Focusing globe"]);
-    const list = visibleEvents(useApp.getState()).sort((a, b) => b.severity - a.severity);
-    const top = list[0];
-    if (!top) return reply("No candidates in the current view. Try widening the filter.");
-    useApp.getState().select(top.id);
-    return reply(`Selected the most severe candidate: ${top.title.toLowerCase()} in ${top.region} (${top.metric}). Confidence: ${top.confidence.toLowerCase()}.`, [{ label: "Show evidence", run: "explain" }]);
+    await runSteps("RANKING CURRENT RESULTS", ["Reading the current filters", "Ranking available records", "Focusing the globe"]);
+    const state = useApp.getState();
+    const sample = visibleEvents(state).sort((a, b) => b.severity - a.severity);
+    const live = state.liveEvents.filter((event) => {
+      const day = event.date.slice(0, 10);
+      return state.layers.has(event.layerId) &&
+        (!state.filter.types || state.filter.types.includes(event.type)) &&
+        (!state.filter.region || `${event.region} ${event.country}`.toLowerCase().includes(state.filter.region.toLowerCase())) &&
+        day >= state.time.start && day <= state.time.end && day <= state.time.current;
+    });
+    const liveQuakes = live.filter((event) => event.source === "USGS" && event.type === "earthquake")
+      .sort((left, right) => Number(right.metric.match(/\\d+(?:\\.\\d+)?/)?.[0] ?? -1) - Number(left.metric.match(/\\d+(?:\\.\\d+)?/)?.[0] ?? -1));
+    const topLive = (/(earthquake|earthquakes|usgs|live)/.test(q) || state.liveEvents.some((event) => event.id === state.selectedId))
+      ? liveQuakes[0]
+      : undefined;
+    if (topLive) {
+      state.select(topLive.id);
+      return reply(`Selected the highest reported magnitude among the currently loaded USGS records: ${topLive.title} (${topLive.metric}). This compares reported magnitude only; it is not a hazard or damage ranking.`);
+    }
+    const top = sample[0];
+    if (!top) return reply("No candidates in the current view. Enable a live source or widen the filters.");
+    state.select(top.id);
+    return reply(`Selected the highest-severity illustrative candidate: ${top.title.toLowerCase()} in ${top.region} (${top.metric}). Confidence shown belongs to the sample record, not a live hazard prediction.`, [{ label: "Show evidence", run: "explain" }]);
   }
 
   if (/explain|what am i looking|what is this/.test(q)) {
-    const sel = EVENTS.find((e) => e.id === useApp.getState().selectedId);
-    await runSteps("INTERPRETING", ["Reading selection", "Summarising evidence"]);
-    if (!sel) return reply("Nothing is selected. The globe shows illustrative candidate events by phenomenon; select a marker to inspect it.");
-    return reply(`${sel.title} — ${sel.region}. ${sel.interpretation} Evidence: ${sel.evidence.map((e) => `${e.source} (${e.strength.toLowerCase()})`).join(", ")}. This is a candidate, not a confirmed event.`);
+    const state = useApp.getState();
+    const live = state.liveEvents.find((event) => event.id === state.selectedId);
+    const sel = EVENTS.find((event) => event.id === state.selectedId);
+    await runSteps("INTERPRETING", ["Reading the selected record", "Summarising source metadata"]);
+    if (live) return reply(`${live.title} — ${live.region}. ${live.summary} Source: ${live.sourceLabel}. This is a source-reported event, not a NISAR measurement or a Third Eye prediction. Open its source record from the context panel to inspect the publisher's details.`);
+    if (!sel) return reply("Nothing is selected. Select an illustrative candidate or enable a public data layer and select a live source marker.");
+    return reply(`${sel.title} — ${sel.region}. ${sel.interpretation} Evidence: ${sel.evidence.map((e) => `${e.source} (${e.strength.toLowerCase()})`).join(", ")}. This is illustrative sample data, not a confirmed event.`);
   }
 
   if (/report/.test(q)) {
@@ -126,6 +150,11 @@ export async function runCommand(raw: string) {
     const term = q.match(/\b(observations|events|datasets|data catalog|discover|methodology|learn)\b/)?.[1];
     const route = term === "observations" ? "/observations" : term === "events" ? "/events" : term === "datasets" || term === "data catalog" ? "/data" : `/${term}`;
     return reply(`Opening the ${term} section.`, [{ label: "Open section", run: `navigate:${route}` }]);
+  }
+
+  if (/\b(live data|live feeds?|usgs|eonet|public feeds?)\b/.test(q)) {
+    const state = useApp.getState();
+    return reply(`Live source status: ${state.liveDataStatus.toUpperCase()}. ${state.liveEvents.length} public records are loaded. ${state.liveDataError ?? "Use the live source controls or Data Explorer to refresh USGS and NASA EONET."} These records are separate from the sample-only scientific overlays.`, [{ label: "Open data explorer", run: "navigate:/data" }]);
   }
 
   if (/clear|reset|all/.test(q)) {
