@@ -107,6 +107,11 @@ describe("NASA CMR metadata adapter", () => {
     })).rejects.toThrow(/on or before/i);
     await expect(searchNISARGranules({
       collectionConceptId: "C12345-ASF",
+      startDate: "2026-02-31",
+      endDate: "2026-03-01",
+    })).rejects.toThrow(/real calendar date/i);
+    await expect(searchNISARGranules({
+      collectionConceptId: "C12345-ASF",
       bounds: { west: 181, south: 0, east: 190, north: 10 },
     })).rejects.toThrow(/bounds/i);
     expect(fetchMock).not.toHaveBeenCalled();
