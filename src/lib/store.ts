@@ -10,8 +10,8 @@ export interface TimeRange { start: string; end: string; current: string }
 export interface EarthFilter {
   types: Phenomenon[] | null;
   region: string | null;
-  significance: "all" | "high" | "moderate+" | "low+";
-  confidence: "all" | "high" | "moderate+" | "low+";
+  significance: "all" | "high" | "moderate+";
+  confidence: "all" | "high" | "moderate+";
   severity: "all" | SeverityBand;
   evidence: "all" | EvidenceClass;
 }
@@ -165,7 +165,7 @@ export const useApp = create<AppState>((set) => ({
     const monthIndex = new Date(eventDay).getUTCMonth();
     return {
       selectedId: id,
-      view: { lat: event.lat, lng: event.lng, altitude: 0.62 },
+      view: { lat: event.lat, lng: event.lng, altitude: 0.015 },
       lod: "regional",
       viewNonce: state.viewNonce + 1,
       monthIndex,
