@@ -18,11 +18,11 @@ export function SignificanceControls() {
     <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-mono text-[10px]"><SlidersHorizontal className="size-3" />SIGNIFICANCE: {filter.significance.toUpperCase()}</summary>
     <div className="grid gap-3 border-t border-border p-3">
       {([
-        ["significance", "Significance", ["all", "high", "moderate+", "low+", "custom"]],
+        ["significance", "Significance", ["all", "high", "moderate+", "low+"]],
         ["confidence", "Confidence", ["all", "high", "moderate+", "low+"]],
         ["severity", "Severity", ["all", "high", "moderate", "low"]],
         ["evidence", "Evidence", ["all", "nisar", "supporting", "multi-source"]],
-      ] as const).map(([key, label, values]) => <label key={key} className="flex items-center justify-between gap-4 text-xs"><span>{label}</span><select aria-label={label} value={filter[key]} onChange={event => set({ [key]: event.target.value } as Partial<EarthFilter>)} className="instrument-select">{values.map(value => <option key={value} value={value}>{value === "nisar" ? "NISAR ONLY" : value === "supporting" ? "NISAR + SUPPORTING" : value.toUpperCase()}</option>)}</select></label>)}
+      ] as const).map(([key, label, values]) => <label key={key} className="flex items-center justify-between gap-4 text-xs"><span>{label}</span><select aria-label={label} value={filter[key]} onChange={event => set({ [key]: event.target.value } as Partial<EarthFilter>)} className="instrument-select">{values.map(value => <option key={value} value={value}>{value === "nisar" ? "NISAR ONLY" : value === "supporting" ? "SUPPORTING ONLY" : value === "multi-source" ? "MULTI-SOURCE" : value.toUpperCase()}</option>)}</select></label>)}
     </div>
   </details>;
 }
