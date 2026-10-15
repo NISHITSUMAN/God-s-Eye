@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchNISARCollections, searchNISARGranules, searchNISARCoverage } from "../lib/nasa-cmr";
+import { fetchNISARGranuleByConceptId, searchNISARCollections, searchNISARGranules, searchNISARCoverage } from "../lib/nasa-cmr";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -17,6 +17,57 @@ function mockCMR(payload: unknown) {
 }
 
 describe("NASA CMR metadata adapter", () => {
+  it("loads a real granule directly by concept ID for shareable observation URLs", async () => {
+    const fetchMock = mockCMR({
+      meta: {
+        "concept-id": "G12345-ASF",
+        "collection-concept-id": "C12345-ASF",
+        "native-id": "NISAR_L2_GCOV_TEST",
+      },
+      umm: {
+        GranuleUR: "NISAR_L2_GCOV_TEST",
+        TemporalExtent: { RangeDateTime: {
+          BeginningDateTime: "2026-10-01T00:00:00Z",
+          EndingDateTime: "2026-10-01T00:00:01Z",
+        } },
+        DataCenters: [{ ShortName: "ASF DAAC" }],
+        CollectionReference: {
+          ShortName: "NISAR_L2_GCOV_PROVISIONAL_V1",
+          EntryTitle: "NISAR Geocoded Covariance Product",
+        },
+        SpatialExtent: { HorizontalSpatialDomain: { Geometry: {
+          GPolygons: [{ Boundary: { Points: [
+            { Longitude: 71, Latitude: 19 },
+            { Longitude: 72, Latitude: 19 },
+            { Longitude: 72, Latitude: 20 },
+            { Longitude: 71, Latitude: 19 },
+          ] } }],
+        } } },
+        RelatedUrls: [{
+          URL: "https://browse.example.org/nisar.png",
+          Type: "GET RELATED VISUALIZATION",
+          URLContentType: "Visualization",
+          MimeType: "image/png",
+        }],
+      },
+    });
+
+    const granule = await fetchNISARGranuleByConceptId("G12345-ASF");
+    expect(granule).toMatchObject({
+      id: "nisar:G12345-ASF",
+      conceptId: "G12345-ASF",
+      collectionConceptId: "C12345-ASF",
+      productCode: "GCOV",
+      collectionShortName: "NISAR_L2_GCOV_PROVISIONAL_V1",
+      startDate: "2026-10-01T00:00:00Z",
+      producer: "ASF DAAC",
+      browseUrl: "https://browse.example.org/nisar.png",
+    });
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toBe(
+      "/search/concepts/G12345-ASF.umm_json",
+    );
+  });
+
   it("normalizes public NISAR collection metadata and ignores unrelated records", async () => {
     const fetchMock = mockCMR({
       hits: 2,
