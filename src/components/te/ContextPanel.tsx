@@ -14,6 +14,48 @@ export function ContextPanel() {
   const select = useApp((s) => s.select);
   const e = selectedId ? sampleDataProvider.event(selectedId) : undefined;
   const live = useApp((s) => selectedId ? s.liveEvents.find((item) => item.id === selectedId) : undefined);
+  const nisar = useApp((s) => selectedId ? s.nisarGranules.find((item) => item.id === selectedId) : undefined);
+
+  if (nisar) {
+    const boundsText = nisar.bounds
+      ? [nisar.bounds.west, nisar.bounds.south, nisar.bounds.east, nisar.bounds.north].map(value => value.toFixed(3)).join(", ")
+      : "Footprint not reported in CMR metadata";
+    return (
+      <div className="glass scroll-thin w-[320px] animate-fade-up overflow-y-auto">
+        <div className="border-b border-border p-4">
+          <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.16em] text-primary">
+            <span className="size-1.5 rounded-full bg-primary" />REAL NISAR PRODUCT · NASA CMR
+          </div>
+          <h2 className="mt-2 break-words text-[15px] font-medium leading-snug">{nisar.productCode} acquisition</h2>
+          <p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{nisar.granuleId}</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">{nisar.collectionShortName}</p>
+        </div>
+        <div className="space-y-3 p-4">
+          {nisar.browseUrl ? (
+            <a href={nisar.browseUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-md border border-border bg-background/50">
+              <img src={nisar.browseUrl} alt={`NASA/ASF browse preview for ${nisar.granuleId}`} loading="lazy" className="max-h-52 w-full object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+              <span className="block px-2 py-1.5 font-mono text-[9px] text-primary">OPEN ORIGINAL BROWSE IMAGE ↗</span>
+            </a>
+          ) : (
+            <div className="rounded-md border border-border bg-background/30 p-3 text-xs text-muted-foreground">No direct browse image was supplied for this granule. Open the NASA Earthdata record to inspect available files.</div>
+          )}
+          <dl className="metadata-grid">
+            <div><dt>Acquisition start</dt><dd>{nisar.startDate ? nisar.startDate.replace("T", " ").slice(0, 19) + " UTC" : "Not reported"}</dd></div>
+            <div><dt>Acquisition end</dt><dd>{nisar.endDate ? nisar.endDate.replace("T", " ").slice(0, 19) + " UTC" : "Not reported"}</dd></div>
+            <div><dt>Processing level</dt><dd>{nisar.collectionShortName.match(/L[0-3]|L0B/i)?.[0] ?? "See collection metadata"}</dd></div>
+            <div><dt>Footprint bounds</dt><dd>{boundsText}</dd></div>
+            <div><dt>Data provider</dt><dd>{nisar.producer || "NASA CMR / ASF"}</dd></div>
+          </dl>
+          <div className="grid gap-2">
+            <a href={nisar.earthdataSearchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">OPEN EARTHDATA RECORD ↗</a>
+            <a href={nisar.metadataUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-xs">NASA CMR METADATA ↗</a>
+            {nisar.dataUrl && <a href={nisar.dataUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-xs">OPEN DATA FILE ↗</a>}
+          </div>
+          <p className="font-mono text-[9px] leading-relaxed tracking-wider text-subtle">REAL CATALOG RECORD · THE BROWSE IMAGE IS A QUICKLOOK, NOT THE FULL SCIENCE RASTER. ACCESS TO THE FULL PRODUCT MAY REQUIRE EARTHDATA LOGIN.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (live) {
     return (
