@@ -28,11 +28,11 @@ import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
 import { phenomenonColor } from "@/lib/mock-data";
 
-const ION_TOKEN = import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined;
-const ION_IMAGERY_ASSET_ID = Number(import.meta.env.VITE_CESIUM_ION_IMAGERY_ASSET_ID || 2);
-const CUSTOM_IMAGERY_URL = import.meta.env.VITE_EARTH_IMAGERY_URL as string | undefined;
-const CUSTOM_IMAGERY_ATTRIBUTION = import.meta.env.VITE_EARTH_IMAGERY_ATTRIBUTION as string | undefined;
-const USE_ION_TERRAIN = String(import.meta.env.VITE_CESIUM_TERRAIN || "false").toLowerCase() === "true";
+const ION_TOKEN = import.meta.env["VITE_CESIUM_ION_TOKEN"] as string | undefined;
+const ION_IMAGERY_ASSET_ID = Number(import.meta.env["VITE_CESIUM_ION_IMAGERY_ASSET_ID"] || 2);
+const CUSTOM_IMAGERY_URL = import.meta.env["VITE_EARTH_IMAGERY_URL"] as string | undefined;
+const CUSTOM_IMAGERY_ATTRIBUTION = import.meta.env["VITE_EARTH_IMAGERY_ATTRIBUTION"] as string | undefined;
+const USE_ION_TERRAIN = String(import.meta.env["VITE_CESIUM_TERRAIN"] || "false").toLowerCase() === "true";
 
 async function esriWorldImagery(): Promise<ImageryProvider> {
   // Use Cesium's native ArcGIS provider rather than constructing REST tile URLs by hand.
@@ -107,9 +107,9 @@ export default function EarthGlobe() {
         selectionIndicator: false,
         // Normal rendering plus resize observation avoids stale first frames on mobile WebGL.
         requestRenderMode: false,
-        resolutionScale: window.innerWidth < 760 ? 0.8 : 1,
         maximumRenderTimeChange: Infinity,
       });
+      viewer.resolutionScale = window.innerWidth < 760 ? 0.8 : 1;
     } catch (initializationError) {
       console.error("Cesium could not initialize WebGL.", initializationError);
       setError("The 3D Earth could not start in this browser. Try the 2D map or another browser with WebGL enabled.");
@@ -250,7 +250,7 @@ export default function EarthGlobe() {
       if (cancelled || viewer.isDestroyed()) return;
       boundaryDataSource = boundary;
       for (const entity of boundary.entities.values) {
-        const name = entity.properties?.name?.getValue(JulianDate.now());
+        const name = entity.properties?.["name"]?.getValue(JulianDate.now());
         if (typeof name === "string") entity.name = `${name} · India official boundary representation`;
       }
       const boundaryLabel = (id: string, text: string, longitude: number, latitude: number) => boundary.entities.add({
