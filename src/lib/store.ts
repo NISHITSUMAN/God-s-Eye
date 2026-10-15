@@ -39,10 +39,11 @@ export interface AppState {
   nisarProductCollections: NISARCollection[];
   nisarGranules: NISARGranule[];
   nisarGranuleHits: number;
+  nisarSelectedProductCodes: string[];
   nisarStatus: "idle" | "loading" | "ready" | "partial" | "error";
   nisarUpdatedAt: string | null;
   nisarError: string | null;
-  refreshNISARData: () => Promise<void>;
+  refreshNISARData: (productCodes?: string[]) => Promise<void>;
   setAOI: (aoi: AOI | null) => void;
   addAnalysis: (result: AnalysisResult) => void;
   sidebarCollapsed: boolean;
@@ -108,6 +109,8 @@ function createInitialTimeRange(): TimeRange {
 }
 
 const INITIAL_TIME = createInitialTimeRange();
+let latestNISARRequest = 0;
+const DEFAULT_NISAR_PRODUCTS = ["GCOV", "GSLC", "GUNW", "SME2"];
 
 export const useApp = create<AppState>((set) => ({
   aoi: null,
@@ -152,9 +155,24 @@ export const useApp = create<AppState>((set) => ({
   nisarStatus: "idle",
   nisarUpdatedAt: null,
   nisarError: null,
-  refreshNISARData: async () => {
-    if (useApp.getState().nisarStatus === "loading") return;
-    set({ nisarStatus: "loading", nisarError: null });
+  refreshNISARData: async (requestedProducts) => {
+    const requestId = ++latestNISARRequest;
+    const initial = useApp.getState();
+    const productCodes = [...new Set((requestedProducts ?? initial.nisarSelectedProductCodes).map(code => code.toUpperCase()))]
+      .filter(code => ["GCOV", "GSLC", "GUNW", "GOFF", "RSLC", "RIFG", "ROFF", "RUNW", "SME2"].includes(code));
+    set({ nisarSelectedProductCodes: productCodes, nisarStatus: "loading", nisarError: null });
+
+    if (!productCodes.length) {
+      set({
+        nisarGranules: [],
+        nisarGranuleHits: 0,
+        nisarStatus: "ready",
+        nisarUpdatedAt: new Date().toISOString(),
+        nisarError: null,
+      });
+      return;
+    }
+
     const snapshot = useApp.getState();
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
@@ -166,7 +184,8 @@ export const useApp = create<AppState>((set) => ({
       ? { west: aoiBounds[0]!, south: aoiBounds[1]!, east: aoiBounds[2]!, north: aoiBounds[3]! }
       : { west: 68, south: 6, east: 98, north: 38 };
     try {
-      const result = await searchNISARCoverage({ bounds, startDate, endDate });
+      const result = await searchNISARCoverage({ bounds, startDate, endDate, productCodes });
+      if (requestId !== latestNISARRequest) return;
       set({
         nisarCollections: result.collections,
         nisarCollectionHits: result.collectionHits,
@@ -178,6 +197,7 @@ export const useApp = create<AppState>((set) => ({
         nisarError: result.warnings.length ? result.warnings.join(" ") : null,
       });
     } catch (error) {
+      if (requestId !== latestNISARRequest) return;
       set((state) => ({
         nisarStatus: state.nisarGranules.length ? "partial" : "error",
         nisarError: error instanceof Error ? error.message : "Real NISAR catalog search failed.",
@@ -191,7 +211,7 @@ export const useApp = create<AppState>((set) => ({
   earthMode: "3d",
   lod: "global",
   advanced: false,
-  layers: new Set(["nisar-footprints", "nisar-tracks", "nisar-coverage", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
+  layers: new Set(["nisar-footprints", "nisar-tracks", "nisar-coverage", "prod-GCOV", "prod-GSLC", "prod-GUNW", "prod-SME2", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
   opacity: {},
   selectedId: null,
   hoveredId: null,
