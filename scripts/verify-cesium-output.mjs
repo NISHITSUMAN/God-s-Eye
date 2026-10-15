@@ -18,15 +18,22 @@ async function exists(filePath) {
   try { await access(filePath); return true; } catch { return false; }
 }
 
-const candidates = [
-  // TanStack Start + Nitro (this repository's actual build preset).
-  path.join(root, ".output", "public"),
-  // Vercel Build Output API static directory, when present.
-  path.join(root, ".vercel", "output", "static"),
-  // Vite client output locations for alternative local previews.
-  path.join(root, "dist", "client"),
-  path.join(root, "dist"),
-];
+const vercelBuild = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+const vercelStaticRoot = path.join(root, ".vercel", "output", "static");
+const candidates = vercelBuild
+  ? [
+      // A Vercel build must validate the directory Vercel actually publishes.
+      vercelStaticRoot,
+    ]
+  : [
+      // Local/Lovable Nitro output.
+      path.join(root, ".output", "public"),
+      // Vercel output is also checked during local integration runs.
+      vercelStaticRoot,
+      // Vite client output locations for alternative local previews.
+      path.join(root, "dist", "client"),
+      path.join(root, "dist"),
+    ];
 
 const existingRoots = [];
 for (const candidate of candidates) {
@@ -35,8 +42,11 @@ for (const candidate of candidates) {
 
 if (existingRoots.length === 0) {
   const entries = await readdir(root);
+  const expected = vercelBuild
+    ? ".vercel/output/static (Vercel Nitro preset)"
+    : "a generated public output directory";
   console.error(
-    "Could not locate a generated public output directory. Build root entries: " + entries.join(", "),
+    `Could not locate ${expected}. Build root entries: ` + entries.join(", "),
   );
   process.exit(1);
 }
@@ -48,12 +58,16 @@ if (!(await exists(sourceRoot))) {
 
 for (const outputRoot of existingRoots) {
   const targetRoot = path.join(outputRoot, "cesium");
+  const missingDirectories = [];
+  for (const directory of ["Workers", "ThirdParty", "Assets", "Widgets"]) {
+    if (!(await exists(path.join(targetRoot, directory)))) missingDirectories.push(directory);
+  }
   let hasRequiredFiles = true;
   for (const relativePath of requiredFiles) {
     if (!(await exists(path.join(targetRoot, relativePath)))) hasRequiredFiles = false;
   }
 
-  if (!hasRequiredFiles) {
+  if (missingDirectories.length || !hasRequiredFiles) {
     await mkdir(targetRoot, { recursive: true });
     for (const directory of ["Workers", "ThirdParty", "Assets", "Widgets"]) {
       await cp(path.join(sourceRoot, directory), path.join(targetRoot, directory), {
@@ -61,6 +75,15 @@ for (const outputRoot of existingRoots) {
         force: true,
       });
     }
+  }
+
+  const directoriesStillMissing = [];
+  for (const directory of ["Workers", "ThirdParty", "Assets", "Widgets"]) {
+    if (!(await exists(path.join(targetRoot, directory)))) directoriesStillMissing.push(directory);
+  }
+  if (directoriesStillMissing.length) {
+    console.error(`Cesium runtime directories are missing in ${outputRoot}: ${directoriesStillMissing.join(", ")}`);
+    process.exit(1);
   }
 
   const missing = [];
