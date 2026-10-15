@@ -84,7 +84,20 @@ export interface AppState {
 }
 
 export const DEFAULT_FILTER: EarthFilter = { types: null, region: null, significance: "all", confidence: "all", severity: "all", evidence: "all" };
-const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", current: "2026-10-15" };
+
+function dateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function createInitialTimeRange(): TimeRange {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setUTCFullYear(start.getUTCFullYear() - 2);
+  return { start: dateKey(start), end: dateKey(today), current: dateKey(today) };
+}
+
+const INITIAL_TIME = createInitialTimeRange();
 
 export const useApp = create<AppState>((set) => ({
   aoi: null,
@@ -128,7 +141,7 @@ export const useApp = create<AppState>((set) => ({
   earthMode: "3d",
   lod: "global",
   advanced: false,
-  layers: new Set(["nisar-footprints", "nisar-tracks", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban"]),
+  layers: new Set(["nisar-footprints", "nisar-tracks", "fire", "flood", "landslide", "subsidence", "volcano", "earthquake", "glacier", "forest", "agriculture", "soil", "coastal", "urban", "live-usgs", "live-eonet"]),
   opacity: {},
   selectedId: null,
   hoveredId: null,
@@ -186,16 +199,31 @@ export const useApp = create<AppState>((set) => ({
   syncView: (view) => set({ view, lod: lodForAltitude(view.altitude) }),
   setMonth: (monthIndex) => set((state) => {
     const safeMonth = Math.min(11, Math.max(0, monthIndex));
-    const current = `2026-${String(safeMonth + 1).padStart(2, "0")}-${String(new Date(state.time.current).getUTCDate()).padStart(2, "0")}`;
-    return { monthIndex: safeMonth, time: { ...state.time, current } };
+    const year = Number(state.time.current.slice(0, 4));
+    const day = Number(state.time.current.slice(8, 10));
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const maxMonth = year === today.getUTCFullYear() ? today.getUTCMonth() : 11;
+    const month = Math.min(safeMonth, maxMonth);
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const requested = `${year}-${String(month + 1).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+    const end = state.time.end > dateKey(today) ? dateKey(today) : state.time.end;
+    const current = requested < state.time.start ? state.time.start : requested > end ? end : requested;
+    return { monthIndex: new Date(current).getUTCMonth(), time: { ...state.time, end, current } };
   }),
   setCurrentDate: (current) => set((state) => {
-    const safeCurrent = current < state.time.start ? state.time.start : current > state.time.end ? state.time.end : current;
-    return { time: { ...state.time, current: safeCurrent }, monthIndex: new Date(safeCurrent).getUTCMonth() };
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const end = state.time.end > dateKey(today) ? dateKey(today) : state.time.end;
+    const safeCurrent = current < state.time.start ? state.time.start : current > end ? end : current;
+    return { time: { ...state.time, end, current: safeCurrent }, monthIndex: new Date(safeCurrent).getUTCMonth() };
   }),
   setTimeRange: (range) => set((state) => {
-    const start = range.start;
-    const end = range.end;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const todayKey = dateKey(today);
+    const end = range.end > todayKey ? todayKey : range.end;
+    const start = range.start > end ? end : range.start;
     const current = state.time.current < start ? start : state.time.current > end ? end : state.time.current;
     return { time: { ...state.time, start, end, current }, monthIndex: new Date(current).getUTCMonth() };
   }),
