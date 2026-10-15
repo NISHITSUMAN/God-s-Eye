@@ -73,7 +73,7 @@ export function Explore() {
       <EarthControls />
       <SignificanceControls />
       <FirstUseGuide />
-      <div className="sample-indicator">NISAR SCIENCE OVERLAYS ARE SAMPLE DATA · LIVE USGS/NASA EVENTS ARE SEPARATE</div>
+      <div className="sample-indicator">REAL NISAR CATALOG FOOTPRINTS · SAMPLE SCIENCE CANDIDATES ARE LABELLED SEPARATELY</div>
       <div className="mobile-panel-controls"><Button size="icon" variant="outline" aria-label="Open layers" onClick={() => setPanel(panel === "layers" ? null : "layers")}><Layers /></Button><Button size="icon" variant="outline" aria-label="Open context" onClick={() => setPanel(panel === "context" ? null : "context")}><Scan /></Button></div>
       {panel && <div className="mobile-earth-panel">{panel === "layers" ? <LayerPanel onCollapse={() => setPanel(null)} /> : <ContextPanel />}</div>}
 
