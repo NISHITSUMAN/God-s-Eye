@@ -189,8 +189,16 @@ export const useApp = create<AppState>((set) => ({
     const current = `2026-${String(safeMonth + 1).padStart(2, "0")}-${String(new Date(state.time.current).getUTCDate()).padStart(2, "0")}`;
     return { monthIndex: safeMonth, time: { ...state.time, current } };
   }),
-  setCurrentDate: (current) => set((state) => ({ time: { ...state.time, current }, monthIndex: new Date(current).getUTCMonth() })),
-  setTimeRange: (range) => set((state) => ({ time: { ...state.time, ...range } })),
+  setCurrentDate: (current) => set((state) => {
+    const safeCurrent = current < state.time.start ? state.time.start : current > state.time.end ? state.time.end : current;
+    return { time: { ...state.time, current: safeCurrent }, monthIndex: new Date(safeCurrent).getUTCMonth() };
+  }),
+  setTimeRange: (range) => set((state) => {
+    const start = range.start;
+    const end = range.end;
+    const current = state.time.current < start ? start : state.time.current > end ? end : state.time.current;
+    return { time: { ...state.time, start, end, current }, monthIndex: new Date(current).getUTCMonth() };
+  }),
   setPlaying: (playing) => set({ playing }),
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setFilter: (value) => set((state) => {
