@@ -8,7 +8,7 @@ export function PageShell({ eyebrow, title, intro, children }: { eyebrow: string
         <h1 className="mt-2 text-[26px] font-medium tracking-tight">{title}</h1>
         {intro && <p className="mt-2 max-w-[640px] text-[14px] leading-relaxed text-muted-foreground">{intro}</p>}
         <div className="mt-8">{children}</div>
-        <p className="mt-10 font-mono text-[9px] tracking-wider text-subtle">ALL VALUES SHOWN ARE ILLUSTRATIVE DEMO DATA — NOT LIVE NASA / NISAR MEASUREMENTS</p>
+        <p className="mt-10 font-mono text-[9px] tracking-wider text-subtle">SCIENTIFIC OVERLAYS AND ANALYSIS RESULTS ARE SAMPLE DATA · LIVE PUBLIC FEEDS ARE SOURCE-ATTRIBUTED</p>
       </div>
     </div>
   );

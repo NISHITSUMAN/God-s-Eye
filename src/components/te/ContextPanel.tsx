@@ -13,6 +13,42 @@ export function ContextPanel() {
   const selectedId = useApp((s) => s.selectedId);
   const select = useApp((s) => s.select);
   const e = selectedId ? sampleDataProvider.event(selectedId) : undefined;
+  const live = useApp((s) => selectedId ? s.liveEvents.find((item) => item.id === selectedId) : undefined);
+
+  if (live) {
+    return (
+      <div className="glass scroll-thin w-[320px] animate-fade-up overflow-y-auto">
+        <div className="flex items-start justify-between border-b border-border p-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.18em] text-ok">
+              <span className="size-1.5 animate-pulse rounded-full bg-ok" />LIVE PUBLIC FEED · {live.source}
+            </div>
+            <h2 className="mt-2 text-[17px] font-medium leading-snug tracking-tight">{live.title}</h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">{live.region}</p>
+            <div className="mt-2 font-mono text-[11px] text-muted-foreground">{formatCoord(live.lat, live.lng)}</div>
+          </div>
+          <Button variant="ghost" onClick={() => select(null)} aria-label="Dismiss" className="shrink-0 text-subtle hover:text-foreground"><X className="size-4" /></Button>
+        </div>
+        <div className="space-y-4 p-4">
+          <div>
+            <div className="font-mono text-[25px] font-light text-foreground">{live.metric}</div>
+            <div className="label-xs mt-0.5">{live.metricLabel}</div>
+          </div>
+          <div className="rounded-md border border-border bg-background/40 p-3">
+            <div className="label-xs mb-2">SOURCE REPORT</div>
+            <p className="text-[13px] leading-relaxed text-foreground/90">{live.summary}</p>
+            <div className="mt-3 text-[11px] text-muted-foreground">Reported time: {live.date.replace("T", " ").slice(0, 19)} UTC</div>
+          </div>
+          <a href={live.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 px-3 py-2.5 text-[12px] text-primary transition-colors hover:bg-primary/10">
+            OPEN SOURCE RECORD <span aria-hidden="true">↗</span>
+          </a>
+          <p className="font-mono text-[9px] leading-relaxed tracking-wider text-subtle">
+            SOURCE-REPORTED EVENT · NOT A NISAR MEASUREMENT OR A THIRD EYE HAZARD PREDICTION
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!e) {
     return (

@@ -59,9 +59,10 @@ function samplePolygon(event: EarthEvent, index: number): SampleGeometry {
 }
 
 const evidenceClass = (event: EarthEvent): EvidenceClass => {
-  const nisar = event.evidence.some((item) => item.source.toLowerCase().includes("nisar"));
-  if (event.evidence.length >= 3) return "multi-source";
-  return nisar && event.evidence.length === 1 ? "nisar" : "supporting";
+  const hasNisar = event.evidence.some((item) => item.source.toLowerCase().includes("nisar"));
+  const hasSupportingSource = event.evidence.some((item) => !item.source.toLowerCase().includes("nisar"));
+  if (hasNisar && hasSupportingSource) return "multi-source";
+  return hasNisar ? "nisar" : "supporting";
 };
 
 export const EARTH_EVENTS: EarthEventRecord[] = EVENTS.map((event, index) => ({
@@ -93,6 +94,8 @@ export const DATASETS = [
   { id: "FIRMS", group: "SUPPORTING", name: "FIRMS thermal anomalies", availability: "NOT CONNECTED", description: "Thermal hotspot evidence source." },
   { id: "LANDSAT", group: "SUPPORTING", name: "Landsat optical imagery", availability: "NOT CONNECTED", description: "Optical context and vegetation indices." },
   { id: "DEM", group: "SUPPORTING", name: "Elevation and slope", availability: "SAMPLE CONTEXT", description: "Terrain context for interpretation." },
+  { id: "USGS-EQ", group: "SUPPORTING", name: "USGS Earthquake Feed", availability: "LIVE CONTEXT FEED", description: "Public GeoJSON reports for earthquakes over the past 24 hours. Context only; not a NISAR product." },
+  { id: "NASA-EONET", group: "SUPPORTING", name: "NASA EONET Open Events", availability: "LIVE CONTEXT FEED", description: "Public open wildfires, floods, landslides and volcanic events. Context only; not a NISAR product." },
 ] as const;
 
 export interface EarthDataProvider {
@@ -117,7 +120,7 @@ export const sampleDataProvider: EarthDataProvider = {
 
 export const severityBand = (severity: number): SeverityBand => severity >= 0.7 ? "high" : severity >= 0.45 ? "moderate" : "low";
 export const confidenceRank: Record<Confidence, number> = { Low: 1, Moderate: 2, High: 3 };
-export const lodForAltitude = (altitude: number): LodBand => altitude >= 1.55 ? "global" : altitude >= 0.7 ? "regional" : altitude >= 0.24 ? "local" : "analysis";
+export const lodForAltitude = (altitude: number): LodBand => altitude >= 1.55 ? "global" : altitude >= 0.2 ? "regional" : altitude >= 0.015 ? "local" : "analysis";
 
 export function eventOpacity(event: EarthEventRecord) {
   if (event.confidence === "High") return 1;

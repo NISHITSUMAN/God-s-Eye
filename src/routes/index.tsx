@@ -20,11 +20,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Explore — Third Eye Earth Intelligence" },
-      { name: "description", content: "Explore Earth through NISAR radar observations, phenomena layers, and an AI that controls the globe." },
+      { name: "description", content: "Explore an interactive Earth, clearly labeled sample NISAR layers, public event feeds, and an interface command simulator." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:title", content: "Third Eye — See. Detect. Understand." },
-      { property: "og:description", content: "An Earth-first intelligence platform built around an interactive 3D globe and NISAR radar data." },
+      { property: "og:description", content: "An Earth-observation prototype with interactive geographic views, sample science layers, and separate public event feeds." },
     ],
   }),
   component: Explore,
@@ -66,7 +66,7 @@ export function Explore() {
       <EarthControls />
       <SignificanceControls />
       <FirstUseGuide />
-      <div className="sample-indicator">SAMPLE DATA — NOT LIVE NASA/NISAR MEASUREMENTS</div>
+      <div className="sample-indicator">NISAR SCIENCE OVERLAYS ARE SAMPLE DATA · LIVE USGS/NASA EVENTS ARE SEPARATE</div>
       <div className="mobile-panel-controls"><Button size="icon" variant="outline" aria-label="Open layers" onClick={() => setPanel(panel === "layers" ? null : "layers")}><Layers /></Button><Button size="icon" variant="outline" aria-label="Open context" onClick={() => setPanel(panel === "context" ? null : "context")}><Scan /></Button></div>
       {panel && <div className="mobile-earth-panel">{panel === "layers" ? <LayerPanel /> : <ContextPanel />}</div>}
 

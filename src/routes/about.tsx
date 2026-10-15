@@ -8,9 +8,9 @@ export const Route = createFileRoute("/about")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "About — Third Eye" },
-      { name: "description", content: "Third Eye is an Earth-first intelligence platform built on NISAR radar observations." },
+      { name: "description", content: "Third Eye is an Earth-observation prototype with sample science overlays and separate public event feeds." },
       { property: "og:title", content: "About — Third Eye" },
-      { property: "og:description", content: "Third Eye is an Earth-first intelligence platform built on NISAR radar observations." },
+      { property: "og:description", content: "Third Eye is an Earth-observation prototype with sample science overlays and separate public event feeds." },
     ],
   }),
   component: () => (

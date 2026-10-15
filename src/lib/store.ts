@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { EARTH_EVENTS, confidenceRank, lodForAltitude, severityBand, type EarthEventRecord, type EarthMode, type EvidenceClass, type LodBand, type SeverityBand } from "./earth-data";
 import type { AOI, AnalysisResult } from "./analysis";
 import type { Phenomenon } from "./mock-data";
+import { fetchLiveEarthData, type LiveEarthEvent } from "./live-data";
 
 export type Mode = "science" | "intelligence";
 export interface View { lat: number; lng: number; altitude: number }
@@ -9,8 +10,8 @@ export interface TimeRange { start: string; end: string; current: string }
 export interface EarthFilter {
   types: Phenomenon[] | null;
   region: string | null;
-  significance: "all" | "high" | "moderate+" | "low+" | "custom";
-  confidence: "all" | "high" | "moderate+" | "low+";
+  significance: "all" | "high" | "moderate+";
+  confidence: "all" | "high" | "moderate+";
   severity: "all" | SeverityBand;
   evidence: "all" | EvidenceClass;
 }
@@ -27,6 +28,11 @@ export interface AIMessage { id: string; role: "user" | "system"; text: string; 
 export interface AppState {
   aoi: AOI | null;
   analyses: AnalysisResult[];
+  liveEvents: LiveEarthEvent[];
+  liveDataStatus: "idle" | "loading" | "ready" | "partial" | "error";
+  liveDataUpdatedAt: string | null;
+  liveDataError: string | null;
+  refreshLiveData: () => Promise<void>;
   setAOI: (aoi: AOI | null) => void;
   addAnalysis: (result: AnalysisResult) => void;
   sidebarCollapsed: boolean;
@@ -78,11 +84,43 @@ export interface AppState {
 }
 
 export const DEFAULT_FILTER: EarthFilter = { types: null, region: null, significance: "all", confidence: "all", severity: "all", evidence: "all" };
-const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", current: "2026-09-30" };
+const INITIAL_TIME: TimeRange = { start: "2026-01-01", end: "2026-12-31", current: "2026-10-15" };
 
 export const useApp = create<AppState>((set) => ({
   aoi: null,
   analyses: [],
+  liveEvents: [],
+  liveDataStatus: "idle",
+  liveDataUpdatedAt: null,
+  liveDataError: null,
+  refreshLiveData: async () => {
+    if (useApp.getState().liveDataStatus === "loading") return;
+    set({ liveDataStatus: "loading", liveDataError: null });
+    try {
+      const result = await fetchLiveEarthData();
+      set((state) => {
+        const failedUSGS = result.errors.some((error) => error.startsWith("USGS:"));
+        const failedEONET = result.errors.some((error) => error.startsWith("NASA EONET:"));
+        const retained = state.liveEvents.filter((event) =>
+          (event.source === "USGS" && failedUSGS) ||
+          (event.source === "NASA EONET" && failedEONET),
+        );
+        const combined = [...retained, ...result.events];
+        const unique = [...new Map(combined.map((event) => [event.id, event])).values()];
+        return {
+          liveEvents: unique,
+          liveDataStatus: result.errors.length ? "partial" : "ready",
+          liveDataUpdatedAt: new Date().toISOString(),
+          liveDataError: result.errors.length ? result.errors.join(" ") : null,
+        };
+      });
+    } catch (error) {
+      set((state) => ({
+        liveDataStatus: state.liveEvents.length ? "partial" : "error",
+        liveDataError: error instanceof Error ? error.message : "Live data could not be loaded.",
+      }));
+    }
+  },
   setAOI: (aoi) => set({ aoi }),
   addAnalysis: (result) => set(state => ({ analyses: [...state.analyses,result], investigation: {...state.investigation,lastAnalysisId:result.id} })),
   sidebarCollapsed: true,
@@ -97,7 +135,7 @@ export const useApp = create<AppState>((set) => ({
   view: { lat: 18, lng: 70, altitude: 2.4 },
   viewNonce: 0,
   time: INITIAL_TIME,
-  monthIndex: 8,
+  monthIndex: 9,
   playing: false,
   playbackSpeed: 1,
   filter: DEFAULT_FILTER,
@@ -121,17 +159,23 @@ export const useApp = create<AppState>((set) => ({
   setOpacity: (id, value) => set((state) => ({ opacity: { ...state.opacity, [id]: value } })),
   select: (id) => set((state) => {
     if (!id) return { selectedId: null, investigation: { ...state.investigation, selectedId: null } };
-    const event = EARTH_EVENTS.find((item) => item.id === id);
+    const event = EARTH_EVENTS.find((item) => item.id === id) ?? state.liveEvents.find((item) => item.id === id);
     if (!event) return { selectedId: id, investigation: { ...state.investigation, selectedId: id } };
-    const monthIndex = new Date(event.date).getUTCMonth();
+    const eventDay = event.date.slice(0, 10);
+    const monthIndex = new Date(eventDay).getUTCMonth();
     return {
       selectedId: id,
-      view: { lat: event.lat, lng: event.lng, altitude: 0.62 },
-      lod: "regional",
+      view: { lat: event.lat, lng: event.lng, altitude: 0.015 },
+      lod: lodForAltitude(0.015),
       viewNonce: state.viewNonce + 1,
       monthIndex,
-      time: { ...state.time, current: event.date },
-      investigation: { ...state.investigation, selectedId: id, region: event.country, types: [event.type] },
+      time: {
+        ...state.time,
+        start: eventDay < state.time.start ? eventDay : state.time.start,
+        end: eventDay > state.time.end ? eventDay : state.time.end,
+        current: eventDay,
+      },
+      investigation: { ...state.investigation, selectedId: id, region: event.region || event.country, types: [event.type] },
     };
   }),
   setHovered: (hoveredId) => set({ hoveredId }),
@@ -145,8 +189,16 @@ export const useApp = create<AppState>((set) => ({
     const current = `2026-${String(safeMonth + 1).padStart(2, "0")}-${String(new Date(state.time.current).getUTCDate()).padStart(2, "0")}`;
     return { monthIndex: safeMonth, time: { ...state.time, current } };
   }),
-  setCurrentDate: (current) => set((state) => ({ time: { ...state.time, current }, monthIndex: new Date(current).getUTCMonth() })),
-  setTimeRange: (range) => set((state) => ({ time: { ...state.time, ...range } })),
+  setCurrentDate: (current) => set((state) => {
+    const safeCurrent = current < state.time.start ? state.time.start : current > state.time.end ? state.time.end : current;
+    return { time: { ...state.time, current: safeCurrent }, monthIndex: new Date(safeCurrent).getUTCMonth() };
+  }),
+  setTimeRange: (range) => set((state) => {
+    const start = range.start;
+    const end = range.end;
+    const current = state.time.current < start ? start : state.time.current > end ? end : state.time.current;
+    return { time: { ...state.time, start, end, current }, monthIndex: new Date(current).getUTCMonth() };
+  }),
   setPlaying: (playing) => set({ playing }),
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setFilter: (value) => set((state) => {
