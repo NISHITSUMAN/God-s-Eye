@@ -119,6 +119,14 @@
 button, a, input, select, summary { transition: background-color .2s, border-color .2s, color .2s, opacity .2s; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .earth-renderer .cesium-viewer, .earth-renderer .cesium-viewer-cesiumWidgetContainer, .earth-renderer .cesium-widget, .earth-renderer canvas { width: 100%; height: 100%; }
+.earth-renderer[data-earth-engine="maplibre"] { position: absolute; width: 100%; height: 100%; background: #0b1218; }
+.earth-renderer[data-earth-engine="maplibre"] .maplibregl-map,
+.earth-renderer[data-earth-engine="maplibre"] .maplibregl-canvas-container,
+.earth-renderer[data-earth-engine="maplibre"] .maplibregl-canvas { width: 100%; height: 100%; }
+.earth-renderer[data-earth-engine="maplibre"] .maplibregl-canvas { display: block; }
+.earth-map-status { position: absolute; top: 50%; left: 50%; z-index: 9; transform: translate(-50%, -50%); max-width: min(90%, 340px); padding: 10px 13px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--background) 88%, transparent); color: var(--foreground); text-align: center; pointer-events: none; box-shadow: var(--shadow-instrument); }
+.earth-map-status-error { pointer-events: auto; }
+.earth-map-status-error button { margin-top: 10px; border: 1px solid var(--primary); border-radius: 5px; padding: 6px 12px; color: var(--primary); font: 10px var(--font-mono); letter-spacing: .08em; }
 .cesium-viewer-bottom { left: 8px; bottom: 224px; z-index: 5; }
 .cesium-widget-credits { display: block; max-width: min(70vw, 560px); white-space: normal; font-size: 10px; }
 .earth-attribution { position: absolute; bottom: 204px; left: 50%; transform: translateX(-50%); font: 8px var(--font-mono); color: var(--muted-foreground); pointer-events: none; white-space: nowrap; text-align: center; max-width: 90%; }
