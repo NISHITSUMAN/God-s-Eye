@@ -264,7 +264,8 @@ export default function EarthMap({ compact = false }: { compact?: boolean }) {
       const detail = event as { error?: { message?: string; url?: string } };
       const message = `${detail.error?.message ?? ""} ${detail.error?.url ?? ""}`;
       const active = BASEMAPS[activeBasemapRef.current];
-      const host = active ? new URL(active.source.tiles[0]).hostname : "";
+      const activeTile = active?.source.tiles?.[0];
+      const host = activeTile ? new URL(activeTile).hostname : "";
       // Ignore unrelated style/data errors; the tile probe handles generic network failures.
       if (!host || !message.includes(host)) return;
       const nextIndex = activeBasemapRef.current + 1;
