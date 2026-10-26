@@ -20,11 +20,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Explore — Third Eye Earth Intelligence" },
-      { name: "description", content: "Explore an interactive Earth, clearly labeled sample NISAR layers, public event feeds, and an interface command simulator." },
+      { name: "description", content: "Explore real NASA NISAR acquisition coverage on a 3D Earth, with zoom-aware satellite map labels and a backend-powered assistant." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:title", content: "Third Eye — See. Detect. Understand." },
-      { property: "og:description", content: "An Earth-observation prototype with interactive geographic views, sample science layers, and separate public event feeds." },
+      { property: "og:description", content: "An Earth-observation explorer with NASA NISAR catalog coverage, satellite imagery, and a backend-powered assistant." },
     ],
   }),
   component: Explore,
@@ -33,8 +33,8 @@ export const Route = createFileRoute("/")({
 export function Explore() {
   const earthMode = useApp(s => s.earthMode);
   const [panel, setPanel] = useState<"layers" | "context" | null>(null);
-  const [layersCollapsed, setLayersCollapsed] = useState(false);
-  const [contextCollapsed, setContextCollapsed] = useState(false);
+  const [layersCollapsed, setLayersCollapsed] = useState(true);
+  const [contextCollapsed, setContextCollapsed] = useState(true);
   const ai = useApp((s) => s.aiActive);
   const filter = useApp((s) => s.filter);
   const setFilter = useApp((s) => s.setFilter);

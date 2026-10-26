@@ -22,7 +22,7 @@ import {
   IonImageryProvider,
   createWorldTerrainAsync,
 } from "cesium";
-import type { ImageryProvider } from "cesium";
+import type { ImageryLayer, ImageryProvider } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { useApp, visibleEvents } from "@/lib/store";
 import { eventOpacity } from "@/lib/earth-data";
@@ -117,6 +117,60 @@ export default function EarthGlobe() {
     }
     ref.current = viewer;
 
+    const referenceLayers: Array<{ layer: ImageryLayer; minHeight: number; maxHeight: number }> = [];
+    let referenceLayersPromise: Promise<void> | null = null;
+
+    const updateReferenceLayers = () => {
+      if (cancelled || viewer.isDestroyed()) return;
+      const height = viewer.camera.positionCartographic.height;
+      for (const reference of referenceLayers) {
+        const alpha = Math.max(0, Math.min(1, (reference.maxHeight - height) / (reference.maxHeight - reference.minHeight)));
+        reference.layer.show = alpha > 0.01;
+        reference.layer.alpha = alpha;
+      }
+      if (referenceLayers.length) viewer.scene.requestRender();
+    };
+
+    // Transparent reference tiles fade in while zooming, keeping the 3D satellite globe
+    // as the base view instead of switching to a separate 2D map.
+    const installReferenceLayers = () => {
+      if (referenceLayersPromise) return referenceLayersPromise;
+      referenceLayersPromise = (async () => {
+        const services = [
+          {
+            url: "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer",
+            minHeight: 1_000_000,
+            maxHeight: 10_000_000,
+          },
+          {
+            url: "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer",
+            minHeight: 250_000,
+            maxHeight: 2_500_000,
+          },
+        ];
+        const results = await Promise.allSettled(services.map((item) =>
+          ArcGisMapServerImageryProvider.fromUrl(item.url, { enablePickFeatures: false }),
+        ));
+        if (cancelled || viewer.isDestroyed()) return;
+        results.forEach((result, index) => {
+          if (result.status !== "fulfilled") {
+            console.warn("A transparent map-reference layer could not load.", result.reason);
+            return;
+          }
+          const service = services[index];
+          if (!service) return;
+          const layer = viewer.imageryLayers.addImageryProvider(result.value);
+          layer.alpha = 0;
+          layer.show = false;
+          referenceLayers.push({ layer, minHeight: service.minHeight, maxHeight: service.maxHeight });
+        });
+        updateReferenceLayers();
+      })().catch((error) => {
+        console.warn("Optional zoom-dependent map labels could not load.", error);
+      });
+      return referenceLayersPromise;
+    };
+
     const removeActiveLayer = () => {
       if (activeLayer) viewer.imageryLayers.remove(activeLayer, true);
       activeLayer = undefined;
@@ -137,6 +191,7 @@ export default function EarthGlobe() {
       setReady(true);
       setError(notice);
       viewer.scene.requestRender();
+      void installReferenceLayers();
       provider.errorEvent.addEventListener((tileError) => {
         if (cancelled || viewer.isDestroyed() || activeProvider !== provider || fallbackBusy) return;
         if (tileError.timesRetried < 2) return;
@@ -288,7 +343,8 @@ export default function EarthGlobe() {
     if (viewer.scene.moon) viewer.scene.moon.show = false;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 80;
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 35000000;
-    viewer.camera.percentageChanged = 0.02;
+    viewer.camera.percentageChanged = 0.01;
+    const removeReferenceCameraChange = viewer.camera.changed.addEventListener(updateReferenceLayers);
     const view = useApp.getState().view;
     viewer.camera.setView({
       destination: Cartesian3.fromDegrees(
@@ -348,12 +404,14 @@ export default function EarthGlobe() {
       retryImageryRef.current = null;
       handler.destroy();
       removeCamera();
+      removeReferenceCameraChange();
       removeTick();
       if (!viewer.isDestroyed()) {
         viewer.scene.canvas.removeEventListener("pointerdown", markInteraction);
         viewer.scene.canvas.removeEventListener("wheel", markInteraction);
         viewer.dataSources.remove(source, true);
         if (boundaryDataSource) viewer.dataSources.remove(boundaryDataSource, true);
+        for (const reference of referenceLayers) viewer.imageryLayers.remove(reference.layer, true);
         viewer.destroy();
       }
       ref.current = null;

@@ -66,3 +66,40 @@ Variables prefixed with `VITE_` are exposed in the browser bundle. Only use clie
 - Analysis routes document a sample workflow; they do not preprocess or interpret real radar rasters.
 - A detailed satellite basemap does not provide NISAR measurements. Real products need a separate ingestion, processing, validation, provenance and visualization pipeline.
 - Run the test, lint and production build commands locally, then verify imagery loads in a real browser with WebGL and the chosen provider's terms/credentials.
+
+
+## Globe imagery and zoom overlays
+
+The 3D Earth uses Esri World Imagery for the satellite/aerial basemap. Separate transparent Esri reference layers fade in above it: place names and administrative boundaries appear while zooming in, while roads/transportation references appear at closer scales. These are geographic context layers, not NISAR measurements; Cesium displays the source attribution.
+
+The 2D MapLibre view remains an alternate view. It does not replace the main 3D globe during zoom.
+
+## Backend API
+
+- GET /api/health reports backend status and whether an AI provider key is configured. It never returns secret values.
+- GET /api/nisar/coverage queries NASA CMR for live NISAR collections and granules. It accepts startDate, endDate, products, and optional west/south/east/north bounds. Public catalog results are cached for five minutes.
+- GET /api/assistant reports whether an AI provider is configured.
+- POST /api/assistant uses Vercel AI Gateway or an OpenAI-compatible provider when configured. It validates messages and model-proposed actions against a strict map/layer allowlist. Without a key, basic commands use a deterministic safe fallback.
+
+### Configure AI on Vercel
+
+In Project → Settings → Environment Variables, add server-side variables in the environments where you want AI enabled:
+
+    AI_GATEWAY_API_KEY=your_server_side_gateway_key
+    AI_MODEL=openai/gpt-4.1-mini
+
+Alternatively, for an OpenAI-compatible provider:
+
+    AI_API_KEY=your_server_side_provider_key
+    AI_BASE_URL=https://api.openai.com/v1
+    AI_MODEL=gpt-4.1-mini
+
+Do not use VITE_* for private secrets: Vite variables become browser-visible. Add the key only in Vercel's server environment, then redeploy. NISAR catalog access works without an AI key.
+
+The assistant endpoint has request-size validation and a small per-runtime throttle. That throttle is not globally shared; before using a public AI key for high traffic, configure Vercel Firewall rate limits or a shared rate-limit service.
+
+## NISAR data scope
+
+Third Eye queries live NASA CMR metadata and displays source-provided granule footprints/bounds on the globe. These shapes show published acquisition coverage; they are not flood extent, deformation measurements, fire/damage detection, or other derived results. CMR records and product links are real, but full NISAR HDF5 product download and georeferenced raster/tile processing are not implemented here. That requires a separate ingestion, validation and scientific processing pipeline. A basemap or catalog footprint must not be described as processed radar imagery.
+
+See the NASA NISAR mission page (https://science.nasa.gov/mission/nisar/), ASF NISAR availability overview (https://nisar-docs.asf.alaska.edu/availability-overview/), and ISRO NISAR S-band release notes (https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html).

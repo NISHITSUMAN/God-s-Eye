@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AnalyzeRouteImport } from './routes/analyze'
+import { Route as ApiAssistantRouteImport } from './routes/api.assistant'
+import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiNisarCoverageRouteImport } from './routes/api.nisar.coverage'
 import { Route as DataRouteImport } from './routes/data'
 import { Route as DatasetsRouteImport } from './routes/datasets'
 import { Route as DiscoverRouteImport } from './routes/discover'
@@ -41,6 +44,21 @@ const AboutRoute = AboutRouteImport.update({
 const AnalyzeRoute = AnalyzeRouteImport.update({
   id: '/analyze',
   path: '/analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAssistantRoute = ApiAssistantRouteImport.update({
+  id: '/api/assistant',
+  path: '/api/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNisarCoverageRoute = ApiNisarCoverageRouteImport.update({
+  id: '/api/nisar/coverage',
+  path: '/api/nisar/coverage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataRoute = DataRouteImport.update({
@@ -123,6 +141,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze': typeof AnalyzeRoute
+  '/api/assistant': typeof ApiAssistantRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/nisar/coverage': typeof ApiNisarCoverageRoute
   '/data': typeof DataRoute
   '/datasets': typeof DatasetsRoute
   '/discover': typeof DiscoverRoute
@@ -143,6 +164,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze': typeof AnalyzeRoute
+  '/api/assistant': typeof ApiAssistantRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/nisar/coverage': typeof ApiNisarCoverageRoute
   '/data': typeof DataRoute
   '/datasets': typeof DatasetsRoute
   '/discover': typeof DiscoverRoute
@@ -164,6 +188,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze': typeof AnalyzeRoute
+  '/api/assistant': typeof ApiAssistantRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/nisar/coverage': typeof ApiNisarCoverageRoute
   '/data': typeof DataRoute
   '/datasets': typeof DatasetsRoute
   '/discover': typeof DiscoverRoute
@@ -186,6 +213,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/analyze'
+    | '/api/assistant'
+    | '/api/health'
+    | '/api/nisar/coverage'
     | '/data'
     | '/datasets'
     | '/discover'
@@ -206,6 +236,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/analyze'
+    | '/api/assistant'
+    | '/api/health'
+    | '/api/nisar/coverage'
     | '/data'
     | '/datasets'
     | '/discover'
@@ -226,6 +259,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/analyze'
+    | '/api/assistant'
+    | '/api/health'
+    | '/api/nisar/coverage'
     | '/data'
     | '/datasets'
     | '/discover'
@@ -247,6 +283,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AnalyzeRoute: typeof AnalyzeRoute
+  ApiAssistantRoute: typeof ApiAssistantRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiNisarCoverageRoute: typeof ApiNisarCoverageRoute
   DataRoute: typeof DataRoute
   DatasetsRoute: typeof DatasetsRoute
   DiscoverRoute: typeof DiscoverRoute
@@ -285,6 +324,27 @@ declare module '@tanstack/react-router' {
       path: '/analyze'
       fullPath: '/analyze'
       preLoaderRoute: typeof AnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/assistant': {
+      id: '/api/assistant'
+      path: '/api/assistant'
+      fullPath: '/api/assistant'
+      preLoaderRoute: typeof ApiAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/nisar/coverage': {
+      id: '/api/nisar/coverage'
+      path: '/api/nisar/coverage'
+      fullPath: '/api/nisar/coverage'
+      preLoaderRoute: typeof ApiNisarCoverageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data': {
@@ -399,6 +459,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AnalyzeRoute: AnalyzeRoute,
+  ApiAssistantRoute: ApiAssistantRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiNisarCoverageRoute: ApiNisarCoverageRoute,
   DataRoute: DataRoute,
   DatasetsRoute: DatasetsRoute,
   DiscoverRoute: DiscoverRoute,

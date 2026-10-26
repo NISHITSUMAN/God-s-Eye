@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import {
-  Globe2, Compass, Microscope, Hourglass, Siren, Satellite, Database, BookOpen,
+  Globe2, Microscope, Satellite, Database, BookOpen,
   Settings, Info, PanelLeftClose, PanelLeftOpen, MoreHorizontal, X,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -11,27 +11,20 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/", label: "Explore", icon: Globe2 },
-  { to: "/discover", label: "Discover", icon: Compass },
+  { to: "/data", label: "NISAR Data", icon: Database },
   { to: "/analyze", label: "Analyze", icon: Microscope },
-  { to: "/timeline", label: "Timeline", icon: Hourglass },
-  { to: "/events", label: "Events", icon: Siren },
   { to: "/observations", label: "Observations", icon: Satellite },
-  { to: "/data", label: "Data", icon: Database },
-  { to: "/intelligence", label: "Intelligence", icon: Microscope },
-  { to: "/datasets", label: "Datasets", icon: Database },
-  { to: "/methodology", label: "Methodology", icon: Microscope },
-  { to: "/reports/create", label: "Reports", icon: BookOpen },
-  { to: "/learn", label: "Learn", icon: BookOpen },
 ] as const;
 const BOTTOM = [
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/about", label: "About", icon: Info },
 ] as const;
-const MOBILE_NAV = NAV.filter((item) => ["/", "/discover", "/analyze", "/data"].includes(item.to));
+const MOBILE_NAV = NAV.filter((item) => ["/", "/analyze", "/data"].includes(item.to));
 const MORE_NAV = [
-  ...NAV.filter((item) => !["/", "/discover", "/analyze", "/data"].includes(item.to)),
+  ...NAV.filter((item) => !["/", "/analyze", "/data"].includes(item.to)),
+  { to: "/reports/create", label: "Reports", icon: BookOpen },
   ...BOTTOM,
-];
+] as const;
 
 export function Sidebar() {
   const collapsed = useApp((s) => s.sidebarCollapsed);

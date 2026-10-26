@@ -197,7 +197,7 @@ async function fetchCMR<T>(
   accept = "application/vnd.nasa.cmr.umm_results+json, application/json",
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), CMR_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), CMR_TIMEOUT_MS);
   try {
     const response = await fetch(url.toString(), {
       signal: controller.signal,
@@ -214,7 +214,7 @@ async function fetchCMR<T>(
     }
     throw error;
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
   }
 }
 

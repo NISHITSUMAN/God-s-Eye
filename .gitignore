@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+public/cesium/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store

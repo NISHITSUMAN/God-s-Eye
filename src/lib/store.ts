@@ -3,7 +3,7 @@ import { EARTH_EVENTS, confidenceRank, lodForAltitude, severityBand, type EarthE
 import type { AOI, AnalysisResult } from "./analysis";
 import type { Phenomenon } from "./mock-data";
 import { fetchLiveEarthData, type LiveEarthEvent } from "./live-data";
-import { searchNISARCoverage, type NISARCollection, type NISARGranule } from "./nasa-cmr";
+import type { NISARCollection, NISARGranule, NISARCoverageResult } from "./nasa-cmr";
 
 export type Mode = "science" | "intelligence";
 export interface View { lat: number; lng: number; altitude: number }
@@ -192,7 +192,21 @@ export const useApp = create<AppState>((set) => ({
       ? { west: aoiBounds[0]!, south: aoiBounds[1]!, east: aoiBounds[2]!, north: aoiBounds[3]! }
       : { west: 68, south: 6, east: 98, north: 38 };
     try {
-      const result = await searchNISARCoverage({ bounds, startDate, endDate, productCodes });
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+        products: productCodes.join(","),
+        west: String(bounds.west),
+        south: String(bounds.south),
+        east: String(bounds.east),
+        north: String(bounds.north),
+      });
+      const response = await fetch(`/api/nisar/coverage?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+      });
+      const payload = await response.json() as NISARCoverageResult & { error?: string };
+      if (!response.ok) throw new Error(payload.error || `NISAR catalog API returned HTTP ${response.status}.`);
+      const result = payload;
       if (requestId !== latestNISARRequest) return;
       set({
         nisarCollections: result.collections,

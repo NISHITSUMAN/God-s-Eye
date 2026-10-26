@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowUp, Check, Circle, Mic, X } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { runCommand } from "@/lib/ai-agent";
+import { applyAssistantAction, runCommand } from "@/lib/ai-agent";
 import { cn } from "@/lib/utils";
 
 const EXAMPLES = ["Show NISAR coverage over Kashmir", "Find recent GCOV products", "Show NISAR coverage over Ladakh", "Open the latest NISAR acquisition"];
@@ -21,11 +21,12 @@ export function CommandBar() {
   const submit = (t: string) => { if (!t.trim() || steps) return; setV(""); void runCommand(t); };
   const runAction = (action: string) => {
     if (action.startsWith("navigate:")) {
-      const destination = action.slice("navigate:".length) as "/" | "/reports/create" | "/analyze" | "/data" | "/datasets" | "/observations" | "/events" | "/discover" | "/methodology" | "/learn";
+      const destination = action.slice("navigate:".length) as "/" | "/analyze" | "/data" | "/observations" | "/events" | "/discover";
       void navigate({ to: destination as never });
       setActive(false);
       return;
     }
+    if (applyAssistantAction(action)) return;
     submit(action);
   };
 
@@ -76,8 +77,8 @@ export function CommandBar() {
       <form onSubmit={(e) => { e.preventDefault(); submit(v); }}
         className={cn("glass flex items-center gap-3 px-4 py-2.5 transition-shadow", active && "glow-cyan")}>
         <span className={cn("size-2 rounded-full bg-primary", (active || steps) && "animate-ai-pulse")} />
-        <input value={v} onChange={(e) => setV(e.target.value)} onFocus={() => setActive(true)} placeholder="Ask or search…" className="flex-1 bg-transparent text-[14px] placeholder:text-subtle focus:outline-none" />
-        <button type="button" title="Voice input is not connected in this prototype" aria-label="Voice input unavailable in this prototype" className="cursor-not-allowed text-subtle opacity-50" disabled><Mic className="size-4" strokeWidth={1.5} /></button>
+        <input value={v} onChange={(e) => setV(e.target.value)} onFocus={() => setActive(true)} placeholder="Ask Third Eye to explore NISAR or control the globe…" className="flex-1 bg-transparent text-[14px] placeholder:text-subtle focus:outline-none" />
+        <button type="button" title="Voice input is not configured yet" aria-label="Voice input is not configured yet" className="cursor-not-allowed text-subtle opacity-50" disabled><Mic className="size-4" strokeWidth={1.5} /></button>
         <button type="submit" disabled={!v.trim()} className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground disabled:bg-elevated disabled:text-subtle" aria-label="Send"><ArrowUp className="size-4" /></button>
       </form>
     </div>
