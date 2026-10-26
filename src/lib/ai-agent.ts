@@ -46,6 +46,7 @@ function execute(action: Action): boolean {
   if (action.type === "refresh_live") { void s.refreshLiveData(); return true; }
   if (action.type === "search_nisar") {
     const region = REGIONS[action.region];
+    if (!region) return false;
     if (action.region === "Global") s.setAOI(null);
     else {
       const [west, south, east, north] = region.bounds;
